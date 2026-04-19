@@ -4,11 +4,7 @@ if (!user) {
 }
 const currentUserId = user?.id;
 let activeContact = null;
-let contacts = [
-    { id: 2, name: "Alice Johnson", lastMessage: "See you later!" },
-    { id: 3, name: "Bob Smith", lastMessage: "How are you?" },
-    { id: 4, name: "Charlie Brown", lastMessage: "Thanks!" }
-];
+let contacts = [];
 
 const contactList = document.getElementById("contactList");
 const chatHeader = document.getElementById("chatHeader");
@@ -22,6 +18,10 @@ function formatTime(date) {
 }
 
 function renderContacts() {
+    if (contacts.length === 0) {
+        contactList.innerHTML = '<div class="contact"><div class="contact-info"><div class="contact-name">No contacts yet</div><div class="contact-preview">Create another user to chat</div></div></div>';
+        return;
+    }
     contactList.innerHTML = contacts.map(c => `
         <div class="contact" data-id="${c.id}">
             <div class="contact-avatar">${c.name.charAt(0)}</div>
@@ -47,7 +47,7 @@ async function selectContact(contactId) {
 
 async function loadMessages() {
     messagesContainer.innerHTML = "";
-    const res = await fetch(`/api/messages?userId=${currentUserId}&contactId=${activeContact.id}`);
+    const res = await fetch(`/api/chat/messages?userId=${currentUserId}&contactId=${activeContact.id}`);
     const { messages } = await res.json();
     if (messages.length === 0) {
         messagesContainer.innerHTML = "<div class='empty-state'>No messages yet. Say hi!</div>";
@@ -77,16 +77,48 @@ messageForm.addEventListener("submit", async (e) => {
     const content = messageInput.value.trim();
     if (!content || !activeContact) return;
 
-    const res = await fetch("/api/messages", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ senderId: currentUserId, receiverId: activeContact.id, content })
-    });
-    const { message } = await res.json();
-    renderMessage(message);
-    activeContact.lastMessage = content;
-    messageInput.value = "";
-    scrollToBottom();
+    const sendBtn = messageForm.querySelector("button");
+    sendBtn.disabled = true;
+
+    try {
+        const res = await fetch("/api/chat/messages", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ senderId: currentUserId, receiverId: activeContact.id, content })
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+            renderMessage(data.message);
+            activeContact.lastMessage = content;
+            messageInput.value = "";
+            scrollToBottom();
+        } else {
+            alert("Failed: " + data.message);
+        }
+    } catch (err) {
+        console.error(err);
+        alert("Error sending message");
+    } finally {
+        sendBtn.disabled = false;
+    }
 });
 
-renderContacts();
+async function loadContacts() {
+    try {
+        const res = await fetch(`/api/chat/contacts?userId=${currentUserId}`);
+        const data = await res.json();
+        if (data.success) {
+            contacts = data.contacts.map(c => ({ 
+                id: c.id, 
+                name: c.name, 
+                lastMessage: "" 
+            }));
+            renderContacts();
+        }
+    } catch (err) {
+        console.error("Failed to load contacts:", err);
+    }
+}
+
+loadContacts();

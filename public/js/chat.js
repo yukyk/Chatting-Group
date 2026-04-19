@@ -2,9 +2,19 @@ const user = JSON.parse(localStorage.getItem('user') || 'null');
 if (!user) {
     window.location.href = '/login';
 }
-const currentUserId = user?.id;
+const currentUserId = parseInt(user?.id);
 let activeContact = null;
 let contacts = [];
+
+document.getElementById('profileAvatar').textContent = user?.name?.charAt(0).toUpperCase() || '?';
+document.getElementById('profileName').textContent = user?.name || 'Unknown';
+document.getElementById('profileEmail').textContent = user?.email || '';
+
+document.getElementById('logoutBtn').addEventListener('click', () => {
+    localStorage.removeItem('user');
+    localStorage.removeItem('token');
+    window.location.href = '/login';
+});
 
 const contactList = document.getElementById("contactList");
 const chatHeader = document.getElementById("chatHeader");
@@ -46,14 +56,22 @@ async function selectContact(contactId) {
 }
 
 async function loadMessages() {
+    if (!activeContact) return;
+    
     messagesContainer.innerHTML = "";
-    const res = await fetch(`/api/chat/messages?userId=${currentUserId}&contactId=${activeContact.id}`);
-    const { messages } = await res.json();
-    if (messages.length === 0) {
-        messagesContainer.innerHTML = "<div class='empty-state'>No messages yet. Say hi!</div>";
-    } else {
-        messages.forEach(renderMessage);
-        scrollToBottom();
+    try {
+        const res = await fetch(`/api/chat/messages?userId=${currentUserId}&contactId=${activeContact.id}`);
+        const data = await res.json();
+        
+        if (data.success && data.messages.length > 0) {
+            data.messages.forEach(renderMessage);
+            scrollToBottom();
+        } else if (data.messages && data.messages.length === 0) {
+            messagesContainer.innerHTML = "<div class='empty-state'>No messages yet. Say hi!</div>";
+        }
+    } catch (err) {
+        console.error("Load messages error:", err);
+        messagesContainer.innerHTML = "<div class='empty-state'>Failed to load messages</div>";
     }
 }
 
@@ -109,11 +127,7 @@ async function loadContacts() {
         const res = await fetch(`/api/chat/contacts?userId=${currentUserId}`);
         const data = await res.json();
         if (data.success) {
-            contacts = data.contacts.map(c => ({ 
-                id: c.id, 
-                name: c.name, 
-                lastMessage: "" 
-            }));
+            contacts = data.contacts;
             renderContacts();
         }
     } catch (err) {

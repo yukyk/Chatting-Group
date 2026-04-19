@@ -1,10 +1,46 @@
-const user = JSON.parse(localStorage.getItem('user') || 'null');
-if (!user) {
+const storedUser = localStorage.getItem('user');
+if (!storedUser) {
     window.location.href = '/login';
 }
-const currentUserId = parseInt(user?.id);
+const user = JSON.parse(storedUser);
+const currentUserId = user ? parseInt(user.id) : null;
+
+if (!currentUserId) {
+    alert('User not found, please login again');
+    window.location.href = '/login';
+}
+console.log('User data:', user, 'ID:', currentUserId);
 let activeContact = null;
 let contacts = [];
+
+const socket = io();
+
+socket.on('connect', () => {
+    console.log('Socket connected, emitting join for user:', currentUserId);
+    socket.emit('join', currentUserId);
+});
+
+socket.on('connect_error', (err) => {
+    console.error('Socket connection error:', err);
+});
+
+socket.on('newMessage', (msg) => {
+    const msgSenderId = parseInt(msg.senderId);
+    const msgReceiverId = parseInt(msg.receiverId);
+    const isSentByMe = msgSenderId === currentUserId;
+    const isSentToMe = msgReceiverId === currentUserId;
+    
+    if (isSentByMe || isSentToMe) {
+        if (activeContact && (msgSenderId === activeContact.id || msgReceiverId === activeContact.id)) {
+            renderMessage(msg);
+            scrollToBottom();
+        } else if (!activeContact) {
+            renderMessage(msg);
+            scrollToBottom();
+        }
+    }
+    loadContacts();
+});
 
 document.getElementById('profileAvatar').textContent = user?.name?.charAt(0).toUpperCase() || '?';
 document.getElementById('profileName').textContent = user?.name || 'Unknown';
@@ -76,7 +112,12 @@ async function loadMessages() {
 }
 
 function renderMessage(msg) {
-    const isSent = msg.senderId === currentUserId;
+    if (!activeContact) return;
+    
+    const emptyState = document.getElementById('emptyState');
+    if (emptyState) emptyState.style.display = 'none';
+    
+    const isSent = parseInt(msg.senderId) === currentUserId;
     const div = document.createElement("div");
     div.className = `message ${isSent ? "sent" : "received"}`;
     div.innerHTML = `
@@ -90,7 +131,7 @@ function scrollToBottom() {
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
 }
 
-messageForm.addEventListener("submit", async (e) => {
+messageForm.addEventListener("submit", (e) => {
     e.preventDefault();
     const content = messageInput.value.trim();
     if (!content || !activeContact) return;
@@ -98,28 +139,14 @@ messageForm.addEventListener("submit", async (e) => {
     const sendBtn = messageForm.querySelector("button");
     sendBtn.disabled = true;
 
-    try {
-        const res = await fetch("/api/chat/messages", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ senderId: currentUserId, receiverId: activeContact.id, content })
-        });
-        const data = await res.json();
-        
-        if (data.success) {
-            renderMessage(data.message);
-            activeContact.lastMessage = content;
-            messageInput.value = "";
-            scrollToBottom();
-        } else {
-            alert("Failed: " + data.message);
-        }
-    } catch (err) {
-        console.error(err);
-        alert("Error sending message");
-    } finally {
-        sendBtn.disabled = false;
-    }
+    socket.emit('sendMessage', {
+        senderId: currentUserId,
+        receiverId: activeContact.id,
+        content: content
+    });
+
+    messageInput.value = "";
+    sendBtn.disabled = false;
 });
 
 async function loadContacts() {

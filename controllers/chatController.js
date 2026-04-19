@@ -4,10 +4,28 @@ const User = require("../models/User");
 exports.getContacts = async (req, res) => {
     try {
         const { userId } = req.query;
-        const contacts = await User.findAll({
+        const users = await User.findAll({
             where: { id: { [require("sequelize").Op.ne]: userId } },
             attributes: ["id", "name"]
         });
+        
+        const contacts = await Promise.all(users.map(async (user) => {
+            const lastMsg = await Message.findOne({
+                where: {
+                    [require("sequelize").Op.or]: [
+                        { senderId: userId, receiverId: user.id },
+                        { senderId: user.id, receiverId: userId }
+                    ]
+                },
+                order: [["createdAt", "DESC"]]
+            });
+            return {
+                id: user.id,
+                name: user.name,
+                lastMessage: lastMsg ? lastMsg.content : ""
+            };
+        }));
+        
         res.json({ success: true, contacts });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });

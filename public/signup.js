@@ -15,7 +15,7 @@ document.getElementById('signupForm').addEventListener('submit', async (e) => {
             localStorage.setItem('token', result.token);
             localStorage.setItem('user', JSON.stringify(result.user));
             alert('Account created successfully!');
-            window.location.href = '/';
+            window.location.href = '/chat';
         } else {
             alert(result.message || 'Signup failed');
         }

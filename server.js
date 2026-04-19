@@ -13,9 +13,10 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/api', require('./routes/auth'));
+app.use('/api/chat', require('./routes/chat'));
 
 app.get('/', (req, res) => {
-  res.redirect('/signup');
+  res.redirect('/chat');
 });
 
 app.get('/signup', (req, res) => {
@@ -24,6 +25,10 @@ app.get('/signup', (req, res) => {
 
 app.get('/login', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'login.html'));
+});
+
+app.get('/chat', (req, res) => {
+  res.sendFile(path.join(__dirname, 'views', 'chat.html'));
 });
 
 app.use((err, req, res, next) => {

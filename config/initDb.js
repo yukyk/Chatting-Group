@@ -1,6 +1,6 @@
 const sequelize = require('../Utils/util');
 const User = require('../models/User');
-const Expense = require('../models/Expense');
+const Message = require('../models/Message');
 
 const initDatabase = async () => {
     try {

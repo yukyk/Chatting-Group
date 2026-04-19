@@ -15,7 +15,7 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
             localStorage.setItem('token', result.token);
             localStorage.setItem('user', JSON.stringify(result.user));
             alert('Login successful!');
-            window.location.href = '/';
+            window.location.href = '/chat';
         } else {
             alert(result.message || 'Login failed');
         }

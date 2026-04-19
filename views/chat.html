@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat</title>
+    <link rel="stylesheet" href="/css/chat.css">
+</head>
+<body>
+    <div class="app">
+        <aside class="sidebar">
+            <header class="sidebar-header">
+                <h2>Chats</h2>
+            </header>
+            <div class="contact-list" id="contactList"></div>
+        </aside>
+        <main class="chat-area">
+            <header class="chat-header" id="chatHeader">
+                <span>Select a chat</span>
+            </header>
+            <div class="messages-container" id="messagesContainer">
+                <div class="empty-state" id="emptyState">Select a contact to start chatting</div>
+            </div>
+            <form class="message-form" id="messageForm">
+                <input type="text" id="messageInput" placeholder="Type a message..." autocomplete="off">
+                <button type="submit">Send</button>
+            </form>
+        </main>
+    </div>
+    <script src="/js/chat.js"></script>
+</body>
+</html>

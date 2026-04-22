@@ -3,9 +3,10 @@ if (!storedUser) {
     window.location.href = '/login';
 }
 const user = JSON.parse(storedUser);
+const token = localStorage.getItem('token');
 const currentUserId = user ? parseInt(user.id) : null;
 
-if (!currentUserId) {
+if (!currentUserId || !token) {
     alert('User not found, please login again');
     window.location.href = '/login';
 }
@@ -13,15 +14,22 @@ console.log('User data:', user, 'ID:', currentUserId);
 let activeContact = null;
 let contacts = [];
 
-const socket = io();
+const socket = io({
+    auth: {
+        token: token
+    }
+});
 
 socket.on('connect', () => {
     console.log('Socket connected, emitting join for user:', currentUserId);
-    socket.emit('join', currentUserId);
+    socket.emit('join');
 });
 
-socket.on('connect_error', (err) => {
-    console.error('Socket connection error:', err);
+socket.on('authError', (err) => {
+    console.error('Authentication error:', err.message);
+    localStorage.removeItem('user');
+    localStorage.removeItem('token');
+    window.location.href = '/login';
 });
 
 socket.on('newMessage', (msg) => {
@@ -140,7 +148,6 @@ messageForm.addEventListener("submit", (e) => {
     sendBtn.disabled = true;
 
     socket.emit('sendMessage', {
-        senderId: currentUserId,
         receiverId: activeContact.id,
         content: content
     });

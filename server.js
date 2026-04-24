@@ -2,16 +2,14 @@ require('dotenv').config();
 const express = require('express');
 const path = require('path');
 const http = require('http');
-const { Server } = require('socket.io');
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
 
 const PORT = process.env.PORT || 3000;
 
 const initDatabase = require('./config/initDb');
-const { initializeSocket } = require('./controllers/socketController');
+const { initializeSocket } = require('./socket-io');
 
 initDatabase();
 
@@ -22,7 +20,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use('/api', require('./routes/auth'));
 app.use('/api/chat', require('./routes/chat'));
 
-initializeSocket(io);
+initializeSocket(server);
 
 app.get('/', (req, res) => {
   res.redirect('/chat');

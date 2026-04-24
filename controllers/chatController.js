@@ -4,6 +4,8 @@ const User = require("../models/User");
 exports.getContacts = async (req, res) => {
     try {
         const { userId } = req.query;
+        const { userSockets } = require('../socket-io/middleware');
+        
         const users = await User.findAll({
             where: { id: { [require("sequelize").Op.ne]: userId } },
             attributes: ["id", "name"]
@@ -22,7 +24,8 @@ exports.getContacts = async (req, res) => {
             return {
                 id: user.id,
                 name: user.name,
-                lastMessage: lastMsg ? lastMsg.content : ""
+                lastMessage: lastMsg ? lastMsg.content : "",
+                online: userSockets.has(user.id)
             };
         }));
         

@@ -1,6 +1,5 @@
 const { DataTypes } = require("sequelize");
 const sequelize = require("../utils/util");
-const User = require("./User");
 
 const Message = sequelize.define("Message", {
     id: {
@@ -15,8 +14,13 @@ const Message = sequelize.define("Message", {
     },
     receiverId: {
         type: DataTypes.INTEGER,
-        allowNull: false,
+        allowNull: true,
         references: { model: "users", key: "id" }
+    },
+    groupId: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        references: { model: "groups", key: "id" }
     },
     content: {
         type: DataTypes.TEXT,
@@ -30,7 +34,5 @@ const Message = sequelize.define("Message", {
     tableName: "messages",
     timestamps: true
 });
-
-Message.belongsTo(User, { foreignKey: 'senderId', as: 'sender' });
 
 module.exports = Message;

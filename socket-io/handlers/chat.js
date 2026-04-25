@@ -82,10 +82,12 @@ const setupHandlers = (socket, io) => {
       if (!pendingInvitations.has(contactId)) {
         pendingInvitations.set(contactId, []);
       }
+      const inviterUser = await User.findByPk(socket.user.userId);
+      const inviterName = inviterUser?.name ?? 'Unknown';
       pendingInvitations.get(contactId).push({
         roomId,
         inviterId: socket.user.userId,
-        inviterName: (await User.findByPk(socket.user.userId)).name
+        inviterName
       });
       socket.emit('invitation_sent_offline', { message: 'Invitation sent. Contact will receive it when online.' });
       console.log(`Invitation stored for offline user ${contactId}`);
@@ -127,15 +129,21 @@ const setupHandlers = (socket, io) => {
     }
 
     const senderId = socket.user.userId;
-    const { groupId, content } = data;
+    const groupId = parseInt(data.groupId, 10);
+    const { content } = data;
     
+    if (Number.isNaN(groupId) || !content || !content.trim()) {
+      socket.emit('groupMessageError', { message: 'Invalid group message payload' });
+      return;
+    }
+
     try {
-      const message = await Message.create({ senderId, receiverId: groupId, content, isGroup: true });
+      const message = await Message.create({ senderId, groupId, content, isGroup: true });
       
       const messageData = {
         id: message.id,
         senderId: message.senderId,
-        receiverId: message.receiverId,
+        groupId: message.groupId,
         content: message.content,
         createdAt: message.createdAt,
         isGroup: true

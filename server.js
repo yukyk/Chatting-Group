@@ -8,6 +8,7 @@ const server = http.createServer(app);
 
 const PORT = process.env.PORT || 3000;
 
+require('./models');
 const initDatabase = require('./config/initDb');
 const { initializeSocket } = require('./socket-io');
 

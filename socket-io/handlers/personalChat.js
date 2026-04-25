@@ -133,13 +133,6 @@ const setupPersonalChatHandlers = (socket, io) => {
     socket.emit('leftPersonalRoom', { roomId });
   });
 
-  // Cleanup on disconnect
-  socket.on('disconnect', () => {
-    if (socket.userId) {
-      userSockets.delete(socket.userId);
-    }
-    console.log('User disconnected:', socket.id);
-  });
 };
 
 module.exports = setupPersonalChatHandlers;

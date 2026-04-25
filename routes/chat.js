@@ -9,7 +9,7 @@ router.post("/messages", authMiddleware, chatController.sendMessage);
 router.post("/validate-email", authMiddleware, chatController.validateEmail);
 router.post("/groups", authMiddleware, chatController.createGroup);
 router.get("/groups", authMiddleware, chatController.getGroups);
-router.get("/groups/:groupId", authMiddleware, chatController.getGroup);
 router.get("/groups/messages", authMiddleware, chatController.getGroupMessages);
+router.get("/groups/:groupId", authMiddleware, chatController.getGroup);
 
 module.exports = router;

@@ -41,6 +41,11 @@ const authMiddleware = (req, res, next) => {
   if (!decoded) {
     return res.status(401).json({ success: false, message: 'Invalid token' });
   }
+
+  decoded.userId = parseInt(decoded.userId, 10);
+  if (Number.isNaN(decoded.userId)) {
+    return res.status(401).json({ success: false, message: 'Invalid token payload' });
+  }
   
   req.user = decoded;
   next();

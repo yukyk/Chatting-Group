@@ -41,8 +41,8 @@ exports.getContacts = async (req, res) => {
 
 exports.getMessages = async (req, res) => {
     try {
-        const userId = req.user.userId;
-        const { contactId } = req.query;
+        const userId = parseInt(req.user.userId, 10);
+        const contactId = parseInt(req.query.contactId, 10);
         const messages = await Message.findAll({
             where: {
                 [Op.or]: [
@@ -60,8 +60,9 @@ exports.getMessages = async (req, res) => {
 
 exports.sendMessage = async (req, res) => {
     try {
-        const senderId = req.user.userId;
-        const { receiverId, content } = req.body;
+        const senderId = parseInt(req.user.userId, 10);
+        const receiverId = parseInt(req.body.receiverId, 10);
+        const { content } = req.body;
         console.log("Sending message:", { senderId, receiverId, content });
         
         if (!receiverId || !content) {
@@ -96,7 +97,7 @@ exports.validateEmail = async (req, res) => {
 
 exports.createGroup = async (req, res) => {
     try {
-        const userId = req.user.userId;
+        const userId = parseInt(req.user.userId, 10);
         const { name, memberIds } = req.body;
         if (!name || !memberIds || !Array.isArray(memberIds)) {
             return res.status(400).json({ success: false, message: "Name and memberIds required" });
@@ -114,7 +115,7 @@ exports.createGroup = async (req, res) => {
 
 exports.getGroups = async (req, res) => {
     try {
-        const userId = req.user.userId;
+        const userId = parseInt(req.user.userId, 10);
         const groups = await Group.findAll({
             include: [{
                 model: GroupMember,
@@ -127,12 +128,12 @@ exports.getGroups = async (req, res) => {
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }
-};;
+};
 
 exports.getGroup = async (req, res) => {
     try {
-        const userId = req.user.userId;
-        const { groupId } = req.params;
+        const userId = parseInt(req.user.userId, 10);
+        const groupId = parseInt(req.params.groupId, 10);
         const isMember = await GroupMember.findOne({ where: { groupId, userId } });
         if (!isMember) {
             return res.status(403).json({ success: false, message: "Not a member" });
@@ -155,21 +156,22 @@ exports.getGroup = async (req, res) => {
 
 exports.getGroupMessages = async (req, res) => {
     try {
-        const userId = req.user.userId;
+        const userId = parseInt(req.user.userId, 10);
         const { groupId } = req.query;
-        const isMember = await GroupMember.findOne({ where: { groupId, userId } });
+        const parsedGroupId = parseInt(groupId, 10);
+        const isMember = await GroupMember.findOne({ where: { groupId: parsedGroupId, userId } });
         if (!isMember) {
             return res.status(403).json({ success: false, message: "Not a member" });
         }
         const messages = await Message.findAll({
-            where: { receiverId: groupId, isGroup: true },
+            where: { groupId: parsedGroupId, isGroup: true },
             include: [{ model: User, as: 'sender', attributes: ['name'] }],
             order: [["createdAt", "ASC"]]
         });
         const msgs = messages.map(m => ({
             id: m.id,
             senderId: m.senderId,
-            senderName: m.sender.name,
+            senderName: m.sender?.name ?? 'Unknown',
             content: m.content,
             createdAt: m.createdAt,
             isGroup: true

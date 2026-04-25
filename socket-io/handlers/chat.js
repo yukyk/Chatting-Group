@@ -111,6 +111,42 @@ const setupHandlers = (socket, io) => {
       }
     }
   });
+
+  // Handle joining group
+  socket.on('join_group', (data) => {
+    const { groupId } = data;
+    socket.join(`group_${groupId}`);
+    console.log(`User ${socket.user.userId} joined group ${groupId}`);
+  });
+
+  // Handle sending group messages
+  socket.on('sendGroupMessage', async (data) => {
+    if (!socket.user || !socket.user.userId) {
+      socket.emit('authError', { message: 'Not authenticated' });
+      return;
+    }
+
+    const senderId = socket.user.userId;
+    const { groupId, content } = data;
+    
+    try {
+      const message = await Message.create({ senderId, receiverId: groupId, content, isGroup: true });
+      
+      const messageData = {
+        id: message.id,
+        senderId: message.senderId,
+        receiverId: message.receiverId,
+        content: message.content,
+        createdAt: message.createdAt,
+        isGroup: true
+      };
+      
+      io.to(`group_${groupId}`).emit('newMessage', messageData);
+      console.log(`Group message sent to group ${groupId}`);
+    } catch (err) {
+      console.error('Error saving group message:', err);
+    }
+  });
 };
 
 module.exports = setupHandlers;

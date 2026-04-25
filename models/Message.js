@@ -1,5 +1,6 @@
 const { DataTypes } = require("sequelize");
 const sequelize = require("../utils/util");
+const User = require("./User");
 
 const Message = sequelize.define("Message", {
     id: {
@@ -20,10 +21,16 @@ const Message = sequelize.define("Message", {
     content: {
         type: DataTypes.TEXT,
         allowNull: false
+    },
+    isGroup: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false
     }
 }, {
     tableName: "messages",
     timestamps: true
 });
+
+Message.belongsTo(User, { foreignKey: 'senderId', as: 'sender' });
 
 module.exports = Message;

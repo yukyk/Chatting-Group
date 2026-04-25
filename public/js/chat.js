@@ -11,7 +11,9 @@ if (!currentUserId || !token) {
     window.location.href = '/login';
 }
 let activeContact = null;
+let activeGroup = null;
 let contacts = [];
+let groups = [];
 let currentRoom = null;
 
 function generateRoomId(email1, email2) {
@@ -39,24 +41,22 @@ socket.on('authError', (err) => {
 // Listen for join confirmation
 socket.on('joined', () => {
     loadContacts();
+    loadGroups();
 });
 
 socket.on('newMessage', (msg) => {
     const msgSenderId = parseInt(msg.senderId);
-    const msgReceiverId = parseInt(msg.receiverId);
     const isSentByMe = msgSenderId === currentUserId;
-    const isSentToMe = msgReceiverId === currentUserId;
+    const isGroup = msg.isGroup;
+    const isForMe = isGroup ? activeGroup && parseInt(msg.receiverId) === activeGroup.id : (activeContact && (msgSenderId === activeContact.id || parseInt(msg.receiverId) === activeContact.id));
     
-    if (isSentByMe || isSentToMe) {
-        if (activeContact && (msgSenderId === activeContact.id || msgReceiverId === activeContact.id)) {
-            renderMessage(msg);
-            scrollToBottom();
-        } else if (!activeContact) {
-            renderMessage(msg);
-            scrollToBottom();
-        }
+    if (isForMe) {
+        renderMessage(msg);
+        scrollToBottom();
     }
-    loadContacts();
+    if (!isGroup) {
+        loadContacts();
+    }
 });
 
 // Listen for user online/offline events
@@ -142,41 +142,65 @@ document.getElementById('logoutBtn').addEventListener('click', () => {
     window.location.href = '/login';
 });
 
-document.getElementById('startChatBtn').addEventListener('click', async () => {
-    const email = document.getElementById('newChatEmail').value.trim();
-    if (!email) {
-        alert('Please enter an email');
+document.getElementById('createGroupBtn').addEventListener('click', () => {
+    openGroupModal();
+});
+
+function openGroupModal() {
+    const modal = document.getElementById('groupModal');
+    const contactSelection = document.getElementById('contactSelection');
+    const groupNameInput = document.getElementById('groupNameInput');
+    contactSelection.innerHTML = contacts.map(c => `
+        <label class="contact-checkbox">
+            <input type="checkbox" value="${c.id}">
+            <span>${c.name}</span>
+        </label>
+    `).join("");
+    groupNameInput.value = '';
+    modal.style.display = 'block';
+}
+
+document.querySelector('.close').addEventListener('click', () => {
+    document.getElementById('groupModal').style.display = 'none';
+});
+
+document.getElementById('createGroupBtnModal').addEventListener('click', () => {
+    const selected = Array.from(document.querySelectorAll('#contactSelection input:checked')).map(cb => parseInt(cb.value));
+    const name = document.getElementById('groupNameInput').value.trim();
+    if (selected.length === 0) {
+        alert('Select at least one contact');
         return;
     }
+    if (!name) {
+        alert('Enter a group name');
+        return;
+    }
+    createGroup(name, selected);
+    document.getElementById('groupModal').style.display = 'none';
+});
+
+async function createGroup(name, memberIds) {
     try {
-        const res = await fetch('/api/chat/validate-email', {
+        const res = await fetch('/api/chat/groups', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`
             },
-            body: JSON.stringify({ email })
+            body: JSON.stringify({ name, memberIds })
         });
         const data = await res.json();
         if (data.success) {
-            const contact = data.user;
-            const roomId = generateRoomId(user.email, contact.email);
-            socket.emit('join_room', { roomId });
-            currentRoom = roomId;
-            activeContact = contact;
-            document.querySelectorAll(".contact").forEach(el => el.classList.remove("active"));
-            chatHeader.innerHTML = `<span>${contact.name}</span>`;
-            emptyState.style.display = "none";
-            await loadMessages();
-            document.getElementById('newChatEmail').value = '';
+            loadGroups();
+            alert('Group created successfully!');
         } else {
-            alert('User not found');
+            alert('Failed to create group: ' + (data.message || 'Unknown error'));
         }
     } catch (err) {
-        console.error('Error validating email:', err);
-        alert('Error validating email');
+        console.error('Create group error:', err);
+        alert('Error creating group');
     }
-});
+}
 
 const contactList = document.getElementById("contactList");
 const chatHeader = document.getElementById("chatHeader");
@@ -190,16 +214,19 @@ function formatTime(date) {
 }
 
 function renderContacts() {
+    console.log('Rendering contacts:', contacts.length, 'groups:', groups.length);
     if (!contactList) {
         console.error('Contact list element not found');
         return;
     }
-    if (contacts.length === 0) {
-        contactList.innerHTML = '<div class="contact"><div class="contact-info"><div class="contact-name">No users found</div><div class="contact-preview">No other users registered</div></div></div>';
+    let html = '';
+    if (contacts.length === 0 && groups.length === 0) {
+        contactList.innerHTML = '<div class="contact"><div class="contact-info"><div class="contact-name">No chats found</div><div class="contact-preview">No other users or groups</div></div></div>';
         return;
     }
-    contactList.innerHTML = contacts.map(c => `
-        <div class="contact" data-id="${c.id}">
+    // Render individual contacts
+    html += contacts.map(c => `
+        <div class="contact" data-id="${c.id}" data-type="contact">
             <div class="contact-avatar">
                 ${c.name.charAt(0)}
                 ${c.online ? '<span class="online-indicator" style="position: absolute; bottom: 2px; right: 2px; width: 12px; height: 12px; background: var(--accent); border-radius: 50%; border: 2px solid var(--bg-secondary);"></span>' : ''}
@@ -214,8 +241,29 @@ function renderContacts() {
             <button class="invite-btn" data-id="${c.id}" title="Invite to Private Room">🔒</button>
         </div>
     `).join("");
+    // Render groups
+    html += groups.map(g => `
+        <div class="contact" data-id="${g.id}" data-type="group">
+            <div class="contact-avatar">G</div>
+            <div class="contact-info">
+                <div class="contact-name">${g.name}</div>
+                <div class="contact-preview">Group chat</div>
+            </div>
+        </div>
+    `).join("");
+    console.log('HTML length:', html.length);
+    contactList.innerHTML = html;
+    console.log('InnerHTML set');
     document.querySelectorAll(".contact").forEach(el => {
-        el.addEventListener("click", () => selectContact(parseInt(el.dataset.id)));
+        el.addEventListener("click", () => {
+            const type = el.dataset.type;
+            const id = parseInt(el.dataset.id);
+            if (type === 'group') {
+                selectGroup(id);
+            } else {
+                selectContact(id);
+            }
+        });
     });
     document.querySelectorAll(".invite-btn").forEach(btn => {
         btn.addEventListener("click", (e) => {
@@ -229,6 +277,66 @@ function renderContacts() {
             }
         });
     });
+}
+
+async function selectGroup(groupId) {
+    activeGroup = groups.find(g => g.id === groupId);
+    activeContact = null;
+    document.querySelectorAll(".contact").forEach(el => el.classList.remove("active"));
+    document.querySelector(`.contact[data-id="${groupId}"][data-type="group"]`).classList.add("active");
+    // Fetch group details including members
+    try {
+        const res = await fetch(`/api/chat/groups/${groupId}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        const data = await res.json();
+        if (data.success) {
+            const members = data.group.members.map(m => m.name).join(', ');
+            chatHeader.innerHTML = `<span>${activeGroup.name} (${members})</span>`;
+        } else {
+            chatHeader.innerHTML = `<span>${activeGroup.name}</span>`;
+        }
+    } catch (err) {
+        chatHeader.innerHTML = `<span>${activeGroup.name}</span>`;
+    }
+    emptyState.style.display = "none";
+    
+    // Leave previous room
+    if (currentRoom) {
+        socket.emit('leave_room', { roomId: currentRoom });
+    }
+    
+    // Join group room
+    socket.emit('join_group', { groupId });
+    currentRoom = `group_${groupId}`;
+    
+    await loadGroupMessages();
+}
+
+async function loadGroupMessages() {
+    if (!activeGroup) return;
+    
+    messagesContainer.innerHTML = "";
+    try {
+        const res = await fetch(`/api/chat/groups/messages?groupId=${activeGroup.id}`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        const data = await res.json();
+        
+        if (data.success && data.messages.length > 0) {
+            data.messages.forEach(renderMessage);
+            scrollToBottom();
+        } else if (data.messages && data.messages.length === 0) {
+            messagesContainer.innerHTML = "<div class='empty-state'>No messages yet. Say hi!</div>";
+        }
+    } catch (err) {
+        console.error("Load group messages error:", err);
+        messagesContainer.innerHTML = "<div class='empty-state'>Failed to load messages</div>";
+    }
 }
 
 async function selectContact(contactId) {
@@ -276,7 +384,7 @@ async function loadMessages() {
 }
 
 function renderMessage(msg) {
-    if (!activeContact) return;
+    if (!activeContact && !activeGroup) return;
     
     const emptyState = document.getElementById('emptyState');
     if (emptyState) emptyState.style.display = 'none';
@@ -284,8 +392,9 @@ function renderMessage(msg) {
     const isSent = parseInt(msg.senderId) === currentUserId;
     const div = document.createElement("div");
     div.className = `message ${isSent ? "sent" : "received"}`;
+    const senderName = msg.isGroup && !isSent ? `${msg.senderName}: ` : '';
     div.innerHTML = `
-        <div class="message-content">${msg.content}</div>
+        <div class="message-content">${senderName}${msg.content}</div>
         <div class="message-meta">${formatTime(msg.createdAt)}</div>
     `;
     messagesContainer.appendChild(div);
@@ -309,11 +418,37 @@ messageForm.addEventListener("submit", (e) => {
             content: content,
             roomId: currentRoom
         });
+    } else if (activeGroup) {
+        socket.emit('sendGroupMessage', {
+            groupId: activeGroup.id,
+            content: content
+        });
     }
 
     messageInput.value = "";
     sendBtn.disabled = false;
 });
+
+async function loadGroups() {
+    try {
+        const res = await fetch('/api/chat/groups', {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        const data = await res.json();
+        console.log('Load groups response:', data);
+        if (data.success) {
+            groups = data.groups;
+            console.log('Groups loaded:', groups.length);
+            renderContacts();
+        } else {
+            console.error('Failed to load groups:', data);
+        }
+    } catch (err) {
+        console.error("Failed to load groups:", err);
+    }
+}
 
 async function loadContacts() {
     try {

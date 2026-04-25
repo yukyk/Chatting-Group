@@ -17,6 +17,7 @@
                     <input type="email" id="newChatEmail" placeholder="Enter email to start chat" autocomplete="off">
                     <button id="startChatBtn">Start Chat</button>
                 </div>
+                <button id="createGroupBtn">Create Group</button>
             </header>
             <div class="contact-list" id="contactList"></div>
             <div class="profile-section" id="profileSection">
@@ -40,6 +41,16 @@
                 <button type="submit">Send</button>
             </form>
         </main>
+    </div>
+    <!-- Group Creation Modal -->
+    <div id="groupModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Create Group</h2>
+            <div id="contactSelection" class="contact-selection"></div>
+            <input type="text" id="groupNameInput" placeholder="Enter group name" autocomplete="off">
+            <button id="createGroupBtnModal">Create</button>
+        </div>
     </div>
     <script src="/js/chat.js"></script>
 </body>

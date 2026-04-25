@@ -1,20 +1,21 @@
+const { DataTypes, Op } = require("sequelize");
 const Message = require("../models/Message");
 const User = require("../models/User");
+const { userSockets } = require('../socket-io/middleware');
 
 exports.getContacts = async (req, res) => {
     try {
-        const { userId } = req.query;
-        const { userSockets } = require('../socket-io/middleware');
-        
+        const userId = req.user.userId;
+
         const users = await User.findAll({
-            where: { id: { [require("sequelize").Op.ne]: userId } },
+            where: { id: { [Op.ne]: userId } },
             attributes: ["id", "name"]
         });
         
         const contacts = await Promise.all(users.map(async (user) => {
             const lastMsg = await Message.findOne({
                 where: {
-                    [require("sequelize").Op.or]: [
+                    [Op.or]: [
                         { senderId: userId, receiverId: user.id },
                         { senderId: user.id, receiverId: userId }
                     ]
@@ -37,10 +38,11 @@ exports.getContacts = async (req, res) => {
 
 exports.getMessages = async (req, res) => {
     try {
-        const { userId, contactId } = req.query;
+        const userId = req.user.userId;
+        const { contactId } = req.query;
         const messages = await Message.findAll({
             where: {
-                [require("sequelize").Op.or]: [
+                [Op.or]: [
                     { senderId: userId, receiverId: contactId },
                     { senderId: contactId, receiverId: userId }
                 ]
@@ -55,10 +57,11 @@ exports.getMessages = async (req, res) => {
 
 exports.sendMessage = async (req, res) => {
     try {
-        const { senderId, receiverId, content } = req.body;
+        const senderId = req.user.userId;
+        const { receiverId, content } = req.body;
         console.log("Sending message:", { senderId, receiverId, content });
         
-        if (!senderId || !receiverId || !content) {
+        if (!receiverId || !content) {
             return res.status(400).json({ success: false, message: "Missing required fields" });
         }
         

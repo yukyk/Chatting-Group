@@ -13,6 +13,12 @@ const setupHandlers = (socket, io) => {
     userSockets.set(uid, socket.id);
     socket.userId = uid;
     console.log(`User ${uid} joined room user_${uid}`);
+    
+    // Notify all clients that this user is online
+    io.emit('userOnline', { userId: uid });
+    
+    // Confirm to the joining user that they have joined
+    socket.emit('joined');
   });
 
   // Handle sending messages

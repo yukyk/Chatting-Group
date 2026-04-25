@@ -55,7 +55,7 @@ const setupPersonalChatHandlers = (socket, io) => {
     try {
       const messages = await Message.findAll({
         where: {
-          [require('sequelize').Op.or]: [
+          [Op.or]: [
             { senderId: userId, receiverId: targetIdInt },
             { senderId: targetIdInt, receiverId: userId }
           ]

@@ -1,11 +1,12 @@
-# WhatsApp Clone - Authentication Backend
+# WhatsApp Clone - Chat Application
 
-A Node.js Express backend with MVC architecture, MySQL database, JWT authentication, and password encryption.
+A Node.js Express backend with MVC architecture, MySQL database, JWT authentication, Socket.IO real-time chat, and password encryption.
 
 ## Features
 
 - **Sign Up** with name, email, phone, and password
 - **Login** with email/phone and password
+- **Real-time chat** using Socket.IO
 - **Password encryption** using bcrypt (10 salt rounds)
 - **JWT token** generation (24-hour expiration)
 - **MySQL database** with proper schema
@@ -17,24 +18,41 @@ A Node.js Express backend with MVC architecture, MySQL database, JWT authenticat
 ```
 whatsapp/
 ├── config/
-│   ├── database.js      # MySQL connection pool configuration
-│   └── initDb.js        # Database and table initialization
+│   └── initDb.js        # Database initialization
 ├── controllers/
-│   └── AuthController.js # Authentication request handlers
+│   ├── AuthController.js # Authentication request handlers
+│   └── chatController.js # Chat request handlers
 ├── models/
-│   └── User.js          # User database model and queries
+│   ├── User.js          # User database model
+│   └── Message.js       # Message database model
 ├── routes/
-│   └── auth.js          # API route definitions
+│   ├── auth.js          # Authentication API routes
+│   └── chat.js          # Chat API routes
+├── socket-io/
+│   ├── index.js         # Socket.IO initialization
+│   ├── middleware.js    # Socket authentication middleware
+│   └── handlers/
+│       └── chat.js      # Socket chat event handlers
 ├── utils/
-│   └── authUtils.js     # Password hashing & JWT utilities
+│   └── util.js          # Sequelize database connection
 ├── public/
-│   ├── signup.html      # Sign up page (frontend)
-│   └── login.html       # Login page (frontend)
-├── .env                 # Environment variables (create from .env.example)
-├── .env.example         # Example environment variables
+│   ├── css/
+│   │   └── chat.css     # Chat page styles
+│   ├── js/
+│   │   └── chat.js      # Chat page JavaScript
+│   ├── login.js         # Login page JavaScript
+│   ├── signup.js        # Signup page JavaScript
+│   └── styles.css       # Global styles
+├── views/
+│   ├── chat.html        # Chat interface
+│   ├── login.html       # Login page
+│   └── signup.html      # Signup page
+├── .env                 # Environment variables
 ├── server.js            # Express app entry point
 ├── package.json         # Dependencies
-└── SETUP.md            # Detailed setup instructions
+├── SETUP.md             # Detailed setup instructions
+├── TEST_INSTRUCTIONS.md # API testing instructions
+└── test-auth.ps1        # PowerShell test script
 ```
 
 ## Quick Setup
@@ -45,7 +63,7 @@ whatsapp/
    ```
 
 2. **Configure database:**
-   Copy `.env.example` to `.env` and update with your MySQL credentials:
+   Update `.env` with your MySQL credentials:
    ```env
    DB_HOST=localhost
    DB_USER=root

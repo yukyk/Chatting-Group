@@ -13,13 +13,6 @@
             <header class="sidebar-header">
                 <h2>Chats</h2>
             </header>
-            <div class="personal-requests-section" id="personalRequestsSection" style="display:none;">
-                <header class="sidebar-header">
-                    <h2>Personal Requests</h2>
-                    <button class="back-btn" id="backToContactsBtn" style="padding: 4px 8px; border: none; background: var(--accent); color: white; border-radius: 4px; cursor: pointer;">← Back</button>
-                </header>
-                <div class="personal-requests-list" id="personalRequestsList"></div>
-            </div>
             <div class="contact-list" id="contactList"></div>
             <div class="profile-section" id="profileSection">
                 <div class="profile-avatar" id="profileAvatar"></div>
@@ -27,13 +20,7 @@
                     <div class="profile-name" id="profileName"></div>
                     <div class="profile-email" id="profileEmail"></div>
                 </div>
-                <div style="display: flex; gap: 8px;">
-                    <div style="position: relative;">
-                        <button class="personal-requests-btn" id="personalRequestsBtn" title="Personal Requests" style="padding: 8px 12px; border: none; border-radius: 8px; background: var(--bg-tertiary); color: var(--text-secondary); cursor: pointer; font-size: 16px;">&#9733;</button>
-                        <span class="personal-requests-badge" id="personalRequestsBadge" style="display:none; position: absolute; top: 0; right: 0; background: #e74c3c; color: white; border-radius: 50%; width: 18px; height: 18px; font-size: 11px; text-align: center; line-height: 18px;">0</span>
-                    </div>
-                    <button class="logout-btn" id="logoutBtn" title="Logout">&#x23FB;</button>
-                </div>
+                <button class="logout-btn" id="logoutBtn" title="Logout">&#x23FB;</button>
             </div>
         </aside>
         <main class="chat-area">

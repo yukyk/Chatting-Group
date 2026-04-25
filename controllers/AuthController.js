@@ -1,5 +1,6 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const { Op } = require('sequelize');
 const User = require('../models/User');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-this-in-production';
@@ -29,6 +30,22 @@ const verifyToken = (token) => {
   }
 };
 
+const authMiddleware = (req, res, next) => {
+  const token = req.headers.authorization?.split(' ')[1] || req.query.token;
+  
+  if (!token) {
+    return res.status(401).json({ success: false, message: 'No token provided' });
+  }
+  
+  const decoded = verifyToken(token);
+  if (!decoded) {
+    return res.status(401).json({ success: false, message: 'Invalid token' });
+  }
+  
+  req.user = decoded;
+  next();
+};
+
 const AuthController = {
   async signup(req, res) {
     try {
@@ -43,7 +60,7 @@ const AuthController = {
 
       const existingUser = await User.findOne({ 
         where: { 
-          [require('sequelize').Op.or]: [{ email }, { phone }] 
+          [Op.or]: [{ email }, { phone }] 
         } 
       });
       if (existingUser) {
@@ -98,7 +115,7 @@ const AuthController = {
 
       const user = await User.findOne({
         where: {
-          [require('sequelize').Op.or]: [{ email: emailOrPhone }, { phone: emailOrPhone }]
+          [Op.or]: [{ email: emailOrPhone }, { phone: emailOrPhone }]
         }
       });
 
@@ -142,4 +159,4 @@ const AuthController = {
   }
 };
 
-module.exports = { AuthController, generateToken, verifyToken };
+module.exports = { AuthController, generateToken, verifyToken, authMiddleware };

@@ -1,12 +1,12 @@
 const { Server } = require('socket.io');
-const { setupMiddleware } = require('./middleware');
+const middleware = require('./middleware');
 const setupChatHandlers = require('./handlers/chat');
 
 const initializeSocket = (httpServer) => {
   const io = new Server(httpServer);
 
   // Setup middleware
-  setupMiddleware(io);
+  middleware.setupMiddleware(io);
 
   io.on('connection', (socket) => {
     console.log('User connected:', socket.id);
@@ -17,10 +17,17 @@ const initializeSocket = (httpServer) => {
     // Handle disconnect
     socket.on('disconnect', () => {
       if (socket.userId) {
-        const { userSockets } = require('./middleware');
-        userSockets.delete(socket.userId);
-        // Notify all clients that this user is offline
-        io.emit('userOffline', { userId: socket.userId });
+        const uid = socket.userId;
+        const count = middleware.onlineUsers.get(uid) || 0;
+        if (count > 0) {
+          middleware.onlineUsers.set(uid, count - 1);
+          if (count - 1 === 0) {
+            // Last connection, notify offline
+            io.emit('userOffline', { userId: uid });
+            middleware.onlineUsers.delete(uid);
+          }
+        }
+        middleware.userSockets.delete(uid);
       }
       console.log('User disconnected:', socket.id);
     });

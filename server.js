@@ -38,6 +38,10 @@ app.get('/chat', (req, res) => {
   res.sendFile(path.join(__dirname, 'views', 'chat.html'));
 });
 
+app.get('/private-chat', (req, res) => {
+  res.sendFile(path.join(__dirname, 'views', 'private-chat.html'));
+});
+
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({

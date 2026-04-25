@@ -5,7 +5,7 @@ const initDatabase = async () => {
         await sequelize.authenticate();
         console.log('MySQL connection successful');
 
-        await sequelize.sync({ alter: true });
+        await sequelize.sync();
         console.log('Database synchronized successfully');
     } catch (error) {
         console.error('Database initialization error:', error);

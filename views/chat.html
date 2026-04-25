@@ -9,9 +9,14 @@
 </head>
 <body>
     <div class="app">
+        <div id="notifications" class="notifications"></div>
         <aside class="sidebar">
             <header class="sidebar-header">
                 <h2>Chats</h2>
+                <div class="new-chat-form">
+                    <input type="email" id="newChatEmail" placeholder="Enter email to start chat" autocomplete="off">
+                    <button id="startChatBtn">Start Chat</button>
+                </div>
             </header>
             <div class="contact-list" id="contactList"></div>
             <div class="profile-section" id="profileSection">

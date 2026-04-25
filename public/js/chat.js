@@ -10,9 +10,14 @@ if (!currentUserId || !token) {
     alert('User not found, please login again');
     window.location.href = '/login';
 }
-console.log('User data:', user, 'ID:', currentUserId);
 let activeContact = null;
 let contacts = [];
+let currentRoom = null;
+
+function generateRoomId(email1, email2) {
+    const sorted = [email1, email2].sort();
+    return sorted.join('_');
+}
 
 const socket = io({
     auth: {
@@ -21,7 +26,6 @@ const socket = io({
 });
 
 socket.on('connect', () => {
-    console.log('Socket connected, emitting join for user:', currentUserId);
     socket.emit('join');
 });
 
@@ -34,7 +38,6 @@ socket.on('authError', (err) => {
 
 // Listen for join confirmation
 socket.on('joined', () => {
-    console.log('Successfully joined, loading contacts');
     loadContacts();
 });
 
@@ -58,13 +61,75 @@ socket.on('newMessage', (msg) => {
 
 // Listen for user online/offline events
 socket.on('userOnline', (data) => {
-    console.log('User came online:', data.userId);
     loadContacts();
 });
 
 socket.on('userOffline', (data) => {
-    console.log('User went offline:', data.userId);
     loadContacts();
+});
+
+socket.on('private_room_invitation', (data) => {
+    const { roomId, inviterId, inviterName } = data;
+    const notifications = document.getElementById('notifications');
+    notifications.style.display = 'block';
+    const notification = document.createElement('div');
+    notification.className = 'notification';
+    notification.innerHTML = `
+        <div class="notification-text">Private room invitation from ${inviterName}</div>
+        <div class="notification-buttons">
+            <button class="accept">Yes</button>
+            <button class="decline">No</button>
+        </div>
+    `;
+    notifications.appendChild(notification);
+    
+    notification.querySelector('.accept').addEventListener('click', () => {
+        socket.emit('accept_private_room', { roomId, inviterId });
+        notifications.removeChild(notification);
+        if (notifications.children.length === 0) {
+            notifications.style.display = 'none';
+        }
+    });
+    
+    notification.querySelector('.decline').addEventListener('click', () => {
+        notifications.removeChild(notification);
+        if (notifications.children.length === 0) {
+            notifications.style.display = 'none';
+        }
+    });
+});
+
+socket.on('private_room_joined', (data) => {
+    const { roomId } = data;
+    // Find the contact based on the roomId
+    const contactEmail = roomId.split('_').find(email => email !== user.email);
+    const contact = contacts.find(c => c.email === contactEmail);
+    if (contact) {
+        // Leave current room
+        if (currentRoom) {
+            socket.emit('leave_room', { roomId: currentRoom });
+        }
+        // Join new room
+        currentRoom = roomId;
+        activeContact = contact;
+        document.querySelectorAll(".contact").forEach(el => el.classList.remove("active"));
+        chatHeader.innerHTML = `<span>${contact.name} (Private)</span>`;
+        emptyState.style.display = "none";
+        loadMessages();
+    }
+});
+
+socket.on('redirect_to_private', (data) => {
+    const { roomId } = data;
+    window.location.href = `/private-chat?roomId=${roomId}`;
+});
+
+socket.on('invitation_failed', (data) => {
+    alert(`Invitation failed: ${data.message}`);
+});
+
+socket.on('invitation_sent_offline', (data) => {
+    alert(data.message);
 });
 
 document.getElementById('profileAvatar').textContent = user?.name?.charAt(0).toUpperCase() || '?';
@@ -75,6 +140,42 @@ document.getElementById('logoutBtn').addEventListener('click', () => {
     localStorage.removeItem('user');
     localStorage.removeItem('token');
     window.location.href = '/login';
+});
+
+document.getElementById('startChatBtn').addEventListener('click', async () => {
+    const email = document.getElementById('newChatEmail').value.trim();
+    if (!email) {
+        alert('Please enter an email');
+        return;
+    }
+    try {
+        const res = await fetch('/api/chat/validate-email', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ email })
+        });
+        const data = await res.json();
+        if (data.success) {
+            const contact = data.user;
+            const roomId = generateRoomId(user.email, contact.email);
+            socket.emit('join_room', { roomId });
+            currentRoom = roomId;
+            activeContact = contact;
+            document.querySelectorAll(".contact").forEach(el => el.classList.remove("active"));
+            chatHeader.innerHTML = `<span>${contact.name}</span>`;
+            emptyState.style.display = "none";
+            await loadMessages();
+            document.getElementById('newChatEmail').value = '';
+        } else {
+            alert('User not found');
+        }
+    } catch (err) {
+        console.error('Error validating email:', err);
+        alert('Error validating email');
+    }
 });
 
 const contactList = document.getElementById("contactList");
@@ -97,7 +198,6 @@ function renderContacts() {
         contactList.innerHTML = '<div class="contact"><div class="contact-info"><div class="contact-name">No users found</div><div class="contact-preview">No other users registered</div></div></div>';
         return;
     }
-    console.log('Rendering contacts to DOM:', contacts.length);
     contactList.innerHTML = contacts.map(c => `
         <div class="contact" data-id="${c.id}">
             <div class="contact-avatar">
@@ -111,10 +211,23 @@ function renderContacts() {
                 </div>
                 <div class="contact-preview">${c.lastMessage || 'No messages yet'}</div>
             </div>
+            <button class="invite-btn" data-id="${c.id}" title="Invite to Private Room">🔒</button>
         </div>
     `).join("");
     document.querySelectorAll(".contact").forEach(el => {
         el.addEventListener("click", () => selectContact(parseInt(el.dataset.id)));
+    });
+    document.querySelectorAll(".invite-btn").forEach(btn => {
+        btn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const contactId = parseInt(btn.dataset.id);
+            const contact = contacts.find(c => c.id === contactId);
+            if (contact) {
+                const roomId = generateRoomId(user.email, contact.email);
+                socket.emit('invite_to_private_room', { contactId, roomId });
+                alert(`Invitation sent to ${contact.name} for private room.`);
+            }
+        });
     });
 }
 
@@ -124,6 +237,17 @@ async function selectContact(contactId) {
     document.querySelector(`.contact[data-id="${contactId}"]`).classList.add("active");
     chatHeader.innerHTML = `<span>${activeContact.name}</span>`;
     emptyState.style.display = "none";
+    
+    // Leave previous room
+    if (currentRoom) {
+        socket.emit('leave_room', { roomId: currentRoom });
+    }
+    
+    // Join new room
+    const roomId = generateRoomId(user.email, activeContact.email);
+    socket.emit('join_room', { roomId });
+    currentRoom = roomId;
+    
     await loadMessages();
 }
 
@@ -182,7 +306,8 @@ messageForm.addEventListener("submit", (e) => {
     if (activeContact) {
         socket.emit('sendMessage', {
             receiverId: activeContact.id,
-            content: content
+            content: content,
+            roomId: currentRoom
         });
     }
 
@@ -192,17 +317,14 @@ messageForm.addEventListener("submit", (e) => {
 
 async function loadContacts() {
     try {
-        console.log('Loading contacts for user:', currentUserId);
         const res = await fetch('/api/chat/contacts', {
             headers: {
                 'Authorization': `Bearer ${token}`
             }
         });
         const data = await res.json();
-        console.log('Contacts loaded:', data);
         if (data.success) {
             contacts = data.contacts;
-            console.log('Rendering', contacts.length, 'contacts');
             renderContacts();
         } else {
             console.error('Failed to load contacts:', data);

@@ -1,7 +1,7 @@
 const { DataTypes, Op } = require("sequelize");
 const Message = require("../models/Message");
 const User = require("../models/User");
-const { userSockets } = require('../socket-io/middleware');
+const middleware = require('../socket-io/middleware');
 
 exports.getContacts = async (req, res) => {
     try {
@@ -9,7 +9,7 @@ exports.getContacts = async (req, res) => {
 
         const users = await User.findAll({
             where: { id: { [Op.ne]: userId } },
-            attributes: ["id", "name"]
+            attributes: ["id", "name", "email"]
         });
         
         const contacts = await Promise.all(users.map(async (user) => {
@@ -25,8 +25,9 @@ exports.getContacts = async (req, res) => {
             return {
                 id: user.id,
                 name: user.name,
+                email: user.email,
                 lastMessage: lastMsg ? lastMsg.content : "",
-                online: userSockets.has(user.id)
+                online: middleware.onlineUsers.has(user.id)
             };
         }));
         
@@ -70,6 +71,23 @@ exports.sendMessage = async (req, res) => {
         res.json({ success: true, message });
     } catch (error) {
         console.error("Send message error:", error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+exports.validateEmail = async (req, res) => {
+    try {
+        const { email } = req.body;
+        if (!email) {
+            return res.status(400).json({ success: false, message: "Email is required" });
+        }
+        const user = await User.findOne({ where: { email } });
+        if (user) {
+            res.json({ success: true, user: { id: user.id, name: user.name, email: user.email } });
+        } else {
+            res.status(404).json({ success: false, message: "User not found" });
+        }
+    } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }
 };

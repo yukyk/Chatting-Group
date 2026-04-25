@@ -1,160 +1,166 @@
-const Message = require('../../models/Message');
-const User = require('../../models/User');
+const { Message, User } = require('../../models');
 const middleware = require('../middleware');
 
-const pendingInvitations = new Map(); // key: userId, value: array of invitations
+const pendingInvitations = new Map();
 
 const setupHandlers = (socket, io) => {
-  // Handle joining user room
-  socket.on('join', () => {
-    middleware.handleJoin(socket, io);
-  });
 
-  // Handle sending messages
-  socket.on('sendMessage', async (data) => {
-    if (!socket.user || !socket.user.userId) {
-      socket.emit('authError', { message: 'Not authenticated' });
-      return;
-    }
+    socket.on('join', () => {
+        middleware.handleJoin(socket, io);
+    });
 
-    const senderId = socket.user.userId;
-    const { receiverId, content, roomId } = data;
-    const receiverIdInt = parseInt(receiverId);
-    
-    try {
-      const message = await Message.create({ senderId, receiverId: receiverIdInt, content });
-      
-      const messageData = {
-        id: message.id,
-        senderId: message.senderId,
-        receiverId: message.receiverId,
-        content: message.content,
-        createdAt: message.createdAt
-      };
-      
-      // Emit to the room instead of user room
-      io.to(roomId).emit('newMessage', messageData);
-      console.log(`Message sent to room ${roomId}`);
-    } catch (err) {
-      console.error('Error saving message:', err);
-    }
-  });
-
-  // Handle joining a room
-  socket.on('join_room', (data) => {
-    const { roomId } = data;
-    socket.join(roomId);
-    console.log(`User ${socket.user.userId} joined room ${roomId}`);
-  });
-
-  // Handle leaving a room
-  socket.on('leave_room', (data) => {
-    const { roomId } = data;
-    socket.leave(roomId);
-    console.log(`User ${socket.user.userId} left room ${roomId}`);
-  });
-
-  // Handle inviting to private room
-  socket.on('invite_to_private_room', async (data) => {
-    const { contactId, roomId } = data;
-    const contactSocketId = middleware.userSockets.get(contactId);
-    if (contactSocketId) {
-      const contactSocket = io.sockets.sockets.get(contactSocketId);
-      if (contactSocket) {
-        try {
-          const inviter = await User.findByPk(socket.user.userId);
-          if (inviter) {
-            contactSocket.emit('private_room_invitation', {
-              roomId,
-              inviterId: socket.user.userId,
-              inviterName: inviter.name
-            });
-            console.log(`Invitation sent from ${socket.user.userId} to ${contactId} for room ${roomId}`);
-          }
-        } catch (err) {
-          console.error('Error fetching inviter:', err);
+    // ── Direct messages ──────────────────────────────────────────────────────
+    socket.on('sendMessage', async (data) => {
+        if (!socket.user?.userId) {
+            socket.emit('authError', { message: 'Not authenticated' });
+            return;
         }
-      } else {
-        socket.emit('invitation_failed', { message: 'Contact socket not found' });
-      }
-    } else {
-      // Store pending invitation
-      if (!pendingInvitations.has(contactId)) {
-        pendingInvitations.set(contactId, []);
-      }
-      const inviterUser = await User.findByPk(socket.user.userId);
-      const inviterName = inviterUser?.name ?? 'Unknown';
-      pendingInvitations.get(contactId).push({
-        roomId,
-        inviterId: socket.user.userId,
-        inviterName
-      });
-      socket.emit('invitation_sent_offline', { message: 'Invitation sent. Contact will receive it when online.' });
-      console.log(`Invitation stored for offline user ${contactId}`);
-    }
-  });
 
-  // Handle accepting private room invitation
-  socket.on('accept_private_room', (data) => {
-    const { roomId, inviterId } = data;
-    const inviterSocketId = middleware.userSockets.get(inviterId);
-    // Join invitee to the room
-    socket.join(roomId);
-    // Emit to invitee
-    socket.emit('redirect_to_private', { roomId });
-    if (inviterSocketId) {
-      const inviterSocket = io.sockets.sockets.get(inviterSocketId);
-      if (inviterSocket) {
-        // Join inviter to the room
-        inviterSocket.join(roomId);
-        // Emit to inviter
-        inviterSocket.emit('redirect_to_private', { roomId });
-        console.log(`Private room ${roomId} created for users ${socket.user.userId} and ${inviterId}`);
-      }
-    }
-  });
+        const senderId = socket.user.userId;
+        const receiverId = parseInt(data.receiverId, 10);
+        const { content, roomId } = data;
 
-  // Handle joining group
-  socket.on('join_group', (data) => {
-    const { groupId } = data;
-    socket.join(`group_${groupId}`);
-    console.log(`User ${socket.user.userId} joined group ${groupId}`);
-  });
+        if (isNaN(receiverId) || !content?.trim()) {
+            socket.emit('messageError', { message: 'Invalid message payload' });
+            return;
+        }
 
-  // Handle sending group messages
-  socket.on('sendGroupMessage', async (data) => {
-    if (!socket.user || !socket.user.userId) {
-      socket.emit('authError', { message: 'Not authenticated' });
-      return;
-    }
+        try {
+            const message = await Message.create({
+                senderId,
+                receiverId,
+                content: content.trim(),
+                isGroup: false
+            });
 
-    const senderId = socket.user.userId;
-    const groupId = parseInt(data.groupId, 10);
-    const { content } = data;
-    
-    if (Number.isNaN(groupId) || !content || !content.trim()) {
-      socket.emit('groupMessageError', { message: 'Invalid group message payload' });
-      return;
-    }
+            io.to(roomId).emit('newMessage', {
+                id: message.id,
+                senderId: message.senderId,
+                receiverId: message.receiverId,
+                content: message.content,
+                createdAt: message.createdAt,
+                isGroup: false
+            });
+        } catch (err) {
+            console.error('Error saving message:', err);
+            socket.emit('messageError', { message: 'Failed to send message' });
+        }
+    });
 
-    try {
-      const message = await Message.create({ senderId, groupId, content, isGroup: true });
-      
-      const messageData = {
-        id: message.id,
-        senderId: message.senderId,
-        groupId: message.groupId,
-        content: message.content,
-        createdAt: message.createdAt,
-        isGroup: true
-      };
-      
-      io.to(`group_${groupId}`).emit('newMessage', messageData);
-      console.log(`Group message sent to group ${groupId}`);
-    } catch (err) {
-      console.error('Error saving group message:', err);
-    }
-  });
+    // ── Room management ───────────────────────────────────────────────────────
+    socket.on('join_room', (data) => {
+        socket.join(data.roomId);
+    });
+
+    socket.on('leave_room', (data) => {
+        socket.leave(data.roomId);
+    });
+
+    // ── Group messages ────────────────────────────────────────────────────────
+    socket.on('join_group', (data) => {
+        const groupId = parseInt(data.groupId, 10);
+        socket.join(`group_${groupId}`);
+    });
+
+    socket.on('sendGroupMessage', async (data) => {
+        if (!socket.user?.userId) {
+            socket.emit('authError', { message: 'Not authenticated' });
+            return;
+        }
+
+        const senderId = socket.user.userId;
+        const groupId = parseInt(data.groupId, 10);
+        const content = data.content?.trim();
+
+        if (isNaN(groupId) || !content) {
+            socket.emit('groupMessageError', { message: 'Invalid group message payload' });
+            return;
+        }
+
+        try {
+            const message = await Message.create({
+                senderId,
+                groupId,
+                content,
+                isGroup: true
+            });
+
+            // Fetch sender name so all clients can show it
+            const sender = await User.findByPk(senderId, { attributes: ['name'] });
+
+            io.to(`group_${groupId}`).emit('newMessage', {
+                id: message.id,
+                senderId: message.senderId,
+                senderName: sender?.name ?? 'Unknown',
+                groupId: message.groupId,
+                content: message.content,
+                createdAt: message.createdAt,
+                isGroup: true
+            });
+        } catch (err) {
+            console.error('Error saving group message:', err);
+            socket.emit('groupMessageError', { message: 'Failed to send group message' });
+        }
+    });
+
+    // ── Private room invitations ──────────────────────────────────────────────
+    socket.on('invite_to_private_room', async (data) => {
+        const { contactId, roomId } = data;
+        const contactSocketId = middleware.userSockets.get(contactId);
+
+        if (contactSocketId) {
+            const contactSocket = io.sockets.sockets.get(contactSocketId);
+            if (contactSocket) {
+                try {
+                    const inviter = await User.findByPk(socket.user.userId);
+                    if (inviter) {
+                        contactSocket.emit('private_room_invitation', {
+                            roomId,
+                            inviterId: socket.user.userId,
+                            inviterName: inviter.name
+                        });
+                    }
+                } catch (err) {
+                    console.error('Error fetching inviter:', err);
+                }
+            } else {
+                socket.emit('invitation_failed', { message: 'Contact socket not found' });
+            }
+        } else {
+            if (!pendingInvitations.has(contactId)) {
+                pendingInvitations.set(contactId, []);
+            }
+            const inviterUser = await User.findByPk(socket.user.userId);
+            pendingInvitations.get(contactId).push({
+                roomId,
+                inviterId: socket.user.userId,
+                inviterName: inviterUser?.name ?? 'Unknown'
+            });
+            socket.emit('invitation_sent_offline', {
+                message: 'Invitation sent. Contact will receive it when online.'
+            });
+        }
+    });
+
+    socket.on('accept_private_room', (data) => {
+        const { roomId, inviterId } = data;
+        socket.join(roomId);
+        socket.emit('redirect_to_private', { roomId });
+
+        const inviterSocketId = middleware.userSockets.get(inviterId);
+        if (inviterSocketId) {
+            const inviterSocket = io.sockets.sockets.get(inviterSocketId);
+            if (inviterSocket) {
+                inviterSocket.join(roomId);
+                inviterSocket.emit('redirect_to_private', { roomId });
+            }
+        }
+    });
+
+    // Broadcast group deletion to all members still in the room
+    socket.on('group_deleted', ({ groupId }) => {
+        io.to(`group_${groupId}`).emit('groupDeleted', { groupId });
+    });
 };
 
 module.exports = setupHandlers;

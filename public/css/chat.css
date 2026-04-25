@@ -426,3 +426,147 @@ body {
 }
 
 #createGroupBtnModal:hover { opacity: 0.9; }
+
+/* online indicator dot on avatars */
+.online-indicator {
+    position: absolute;
+    bottom: 2px;
+    right: 2px;
+    width: 12px;
+    height: 12px;
+    background: var(--accent);
+    border-radius: 50%;
+    border: 2px solid var(--bg-secondary);
+}
+
+/* Create Group button */
+#createGroupBtn {
+    display: block;
+    width: 100%;
+    margin-top: 10px;
+    padding: 8px;
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    border: 1px solid var(--accent);
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: background 0.2s;
+}
+#createGroupBtn:hover { background: var(--accent); }
+
+/* scrollable contact-selection in modal */
+.contact-selection {
+    max-height: 220px;
+    overflow-y: auto;
+    margin: 16px 0;
+    border: 1px solid var(--bg-tertiary);
+    border-radius: 4px;
+    padding: 8px;
+}
+
+.contact-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 4px;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: background 0.15s;
+}
+.contact-checkbox:hover { background: var(--bg-tertiary); }
+.contact-checkbox input[type="checkbox"] { cursor: pointer; accent-color: var(--accent); }
+
+/* ── Unread badge dot ─────────────────────────────── */
+.unread-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 5px;
+    border-radius: 10px;
+    background: var(--accent);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 600;
+    margin-left: auto;
+    flex-shrink: 0;
+    animation: badgePop 0.2s ease;
+}
+
+@keyframes badgePop {
+    from { transform: scale(0.5); opacity: 0; }
+    to   { transform: scale(1);   opacity: 1; }
+}
+
+/* ── Online label text ───────────────────────────── */
+.online-label {
+    font-size: 11px;
+    margin-left: 4px;
+    color: var(--text-secondary);
+}
+.online-label.is-online { color: var(--accent); }
+
+/* ── Group section divider ───────────────────────── */
+.section-label {
+    padding: 8px 16px;
+    font-size: 11px;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-top: 1px solid var(--bg-tertiary);
+    margin-top: 4px;
+}
+
+/* ── Creator badge pill ──────────────────────────── */
+.creator-badge {
+    font-size: 9px;
+    font-weight: 600;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    border-radius: 4px;
+    padding: 1px 4px;
+    margin-left: 6px;
+    vertical-align: middle;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+/* ── Group avatar (purple) ───────────────────────── */
+.group-avatar {
+    background: #7c4dff !important;
+}
+
+/* ── Delete group button ─────────────────────────── */
+.delete-group-btn {
+    background: none;
+    border: none;
+    font-size: 15px;
+    cursor: pointer;
+    padding: 4px 6px;
+    border-radius: 4px;
+    color: var(--text-secondary);
+    opacity: 0;
+    transition: opacity 0.15s, background 0.15s;
+    margin-left: 4px;
+    flex-shrink: 0;
+}
+.contact:hover .delete-group-btn { opacity: 1; }
+.delete-group-btn:hover { background: rgba(220, 53, 69, 0.15); color: #e05260; }
+
+/* ── Chat header sub-text ────────────────────────── */
+.header-sub {
+    font-size: 12px;
+    color: var(--text-secondary);
+    font-weight: 400;
+    margin-left: 6px;
+}
+
+/* ── Sender name in group messages ──────────────── */
+.msg-sender {
+    font-size: 11px;
+    color: var(--accent);
+    margin-bottom: 2px;
+    font-weight: 500;
+}

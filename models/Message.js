@@ -9,18 +9,15 @@ const Message = sequelize.define("Message", {
     },
     senderId: {
         type: DataTypes.INTEGER,
-        allowNull: false,
-        references: { model: "users", key: "id" }
+        allowNull: false
     },
     receiverId: {
         type: DataTypes.INTEGER,
-        allowNull: true,
-        references: { model: "users", key: "id" }
+        allowNull: true   // nullable: null for group messages
     },
     groupId: {
         type: DataTypes.INTEGER,
-        allowNull: true,
-        references: { model: "groups", key: "id" }
+        allowNull: true   // nullable: null for direct messages
     },
     content: {
         type: DataTypes.TEXT,

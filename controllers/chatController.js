@@ -1,8 +1,5 @@
-const { DataTypes, Op } = require("sequelize");
-const Message = require("../models/Message");
-const User = require("../models/User");
-const Group = require("../models/Group");
-const GroupMember = require("../models/GroupMember");
+const { Op } = require("sequelize");
+const { Message, User, Group, GroupMember } = require("../models");
 const middleware = require('../socket-io/middleware');
 
 exports.getContacts = async (req, res) => {
@@ -13,10 +10,11 @@ exports.getContacts = async (req, res) => {
             where: { id: { [Op.ne]: userId } },
             attributes: ["id", "name", "email"]
         });
-        
+
         const contacts = await Promise.all(users.map(async (user) => {
             const lastMsg = await Message.findOne({
                 where: {
+                    isGroup: false,
                     [Op.or]: [
                         { senderId: userId, receiverId: user.id },
                         { senderId: user.id, receiverId: userId }
@@ -32,7 +30,7 @@ exports.getContacts = async (req, res) => {
                 online: middleware.onlineUsers.has(user.id)
             };
         }));
-        
+
         res.json({ success: true, contacts });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
@@ -41,10 +39,11 @@ exports.getContacts = async (req, res) => {
 
 exports.getMessages = async (req, res) => {
     try {
-        const userId = parseInt(req.user.userId, 10);
+        const userId = req.user.userId;
         const contactId = parseInt(req.query.contactId, 10);
         const messages = await Message.findAll({
             where: {
+                isGroup: false,
                 [Op.or]: [
                     { senderId: userId, receiverId: contactId },
                     { senderId: contactId, receiverId: userId }
@@ -60,20 +59,17 @@ exports.getMessages = async (req, res) => {
 
 exports.sendMessage = async (req, res) => {
     try {
-        const senderId = parseInt(req.user.userId, 10);
+        const senderId = req.user.userId;
         const receiverId = parseInt(req.body.receiverId, 10);
         const { content } = req.body;
-        console.log("Sending message:", { senderId, receiverId, content });
-        
+
         if (!receiverId || !content) {
             return res.status(400).json({ success: false, message: "Missing required fields" });
         }
-        
-        const message = await Message.create({ senderId, receiverId, content });
-        console.log("Message saved:", message.id);
+
+        const message = await Message.create({ senderId, receiverId, content, isGroup: false });
         res.json({ success: true, message });
     } catch (error) {
-        console.error("Send message error:", error);
         res.status(500).json({ success: false, message: error.message });
     }
 };
@@ -97,15 +93,19 @@ exports.validateEmail = async (req, res) => {
 
 exports.createGroup = async (req, res) => {
     try {
-        const userId = parseInt(req.user.userId, 10);
+        const userId = req.user.userId;
         const { name, memberIds } = req.body;
+
         if (!name || !memberIds || !Array.isArray(memberIds)) {
             return res.status(400).json({ success: false, message: "Name and memberIds required" });
         }
+
         const group = await Group.create({ name, creatorId: userId });
-        const members = [userId, ...memberIds].map(id => ({ groupId: group.id, userId: id }));
+
+        const allIds = [...new Set([userId, ...memberIds.map(id => parseInt(id, 10))])];
+        const members = allIds.map(id => ({ groupId: group.id, userId: id }));
         await GroupMember.bulkCreate(members);
-        console.log('Group created:', group.id, 'with members:', members.length);
+
         res.json({ success: true, group });
     } catch (error) {
         console.error('Create group error:', error);
@@ -115,16 +115,21 @@ exports.createGroup = async (req, res) => {
 
 exports.getGroups = async (req, res) => {
     try {
-        const userId = parseInt(req.user.userId, 10);
+        const userId = req.user.userId;
+
+        const memberships = await GroupMember.findAll({ where: { userId } });
+        const groupIds = memberships.map(m => m.groupId);
+
+        if (groupIds.length === 0) {
+            return res.json({ success: true, groups: [] });
+        }
+
         const groups = await Group.findAll({
-            include: [{
-                model: GroupMember,
-                required: false
-            }]
+            where: { id: groupIds },
+            include: [{ model: GroupMember, as: 'GroupMembers' }]
         });
-        const filteredGroups = groups.filter(g => g.GroupMembers.some(m => m.userId === userId));
-        console.log('Groups found:', groups.length, 'filtered:', filteredGroups.length);
-        res.json({ success: true, groups: filteredGroups });
+
+        res.json({ success: true, groups });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }
@@ -132,22 +137,27 @@ exports.getGroups = async (req, res) => {
 
 exports.getGroup = async (req, res) => {
     try {
-        const userId = parseInt(req.user.userId, 10);
+        const userId = req.user.userId;
         const groupId = parseInt(req.params.groupId, 10);
+
         const isMember = await GroupMember.findOne({ where: { groupId, userId } });
         if (!isMember) {
             return res.status(403).json({ success: false, message: "Not a member" });
         }
+
         const group = await Group.findByPk(groupId, {
             include: [{
                 model: GroupMember,
-                include: [{ model: User, attributes: ['id', 'name', 'email'] }]
+                as: 'GroupMembers',
+                include: [{ model: User, as: 'User', attributes: ['id', 'name', 'email'] }]
             }]
         });
+
         if (!group) {
             return res.status(404).json({ success: false, message: "Group not found" });
         }
-        const members = group.GroupMembers.map(gm => gm.User);
+
+        const members = group.GroupMembers.map(gm => gm.User).filter(Boolean);
         res.json({ success: true, group: { ...group.toJSON(), members } });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
@@ -156,28 +166,61 @@ exports.getGroup = async (req, res) => {
 
 exports.getGroupMessages = async (req, res) => {
     try {
-        const userId = parseInt(req.user.userId, 10);
-        const { groupId } = req.query;
-        const parsedGroupId = parseInt(groupId, 10);
-        const isMember = await GroupMember.findOne({ where: { groupId: parsedGroupId, userId } });
+        const userId = req.user.userId;
+        const groupId = parseInt(req.query.groupId, 10);
+
+        if (isNaN(groupId)) {
+            return res.status(400).json({ success: false, message: "Invalid groupId" });
+        }
+
+        const isMember = await GroupMember.findOne({ where: { groupId, userId } });
         if (!isMember) {
             return res.status(403).json({ success: false, message: "Not a member" });
         }
+
         const messages = await Message.findAll({
-            where: { groupId: parsedGroupId, isGroup: true },
-            include: [{ model: User, as: 'sender', attributes: ['name'] }],
+            where: { groupId, isGroup: true },
+            include: [{ model: User, as: 'sender', attributes: ['id', 'name'] }],
             order: [["createdAt", "ASC"]]
         });
+
         const msgs = messages.map(m => ({
             id: m.id,
             senderId: m.senderId,
             senderName: m.sender?.name ?? 'Unknown',
+            groupId: m.groupId,
             content: m.content,
             createdAt: m.createdAt,
             isGroup: true
         }));
+
         res.json({ success: true, messages: msgs });
     } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+exports.deleteGroup = async (req, res) => {
+    try {
+        const userId = req.user.userId;
+        const groupId = parseInt(req.params.groupId, 10);
+
+        const group = await Group.findByPk(groupId);
+        if (!group) {
+            return res.status(404).json({ success: false, message: "Group not found" });
+        }
+        if (group.creatorId !== userId) {
+            return res.status(403).json({ success: false, message: "Only the group creator can delete this group" });
+        }
+
+        // Delete messages, members, then group
+        await Message.destroy({ where: { groupId, isGroup: true } });
+        await GroupMember.destroy({ where: { groupId } });
+        await group.destroy();
+
+        res.json({ success: true, message: "Group deleted" });
+    } catch (error) {
+        console.error('Delete group error:', error);
         res.status(500).json({ success: false, message: error.message });
     }
 };

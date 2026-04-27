@@ -20,7 +20,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/api', require('./routes/auth'));
 app.use('/api/chat', require('./routes/chat'));
-app.use('/api/chat', require('./routes/upload'));
+app.use('/api/chat', require('./routes/media'));
 
 initializeSocket(server);
 

@@ -545,6 +545,7 @@ document.getElementById('fileInput').addEventListener('change', async (e) => {
     try {
         const formData = new FormData();
         formData.append('file', file);
+        formData.append('room', currentRoom);
 
         const res = await fetch('/api/chat/upload-media', {
             method: 'POST',
@@ -554,7 +555,7 @@ document.getElementById('fileInput').addEventListener('change', async (e) => {
 
         const data = await res.json();
         if (data.success) {
-            sendMediaMessage(data.url, data.mediaType);
+            sendMediaMessage(data.mediaUrl, data.fileType);
         } else {
             alert('Upload failed: ' + (data.message || 'Unknown error'));
         }

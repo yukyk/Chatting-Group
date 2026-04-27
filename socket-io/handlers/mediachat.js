@@ -1,5 +1,3 @@
-const { registerMediaHandlers } = require('./handlers/mediachat'); // add at top
-
 // socket-io/handlers/mediaChat.js
 //
 // ADD this handler inside your existing socket-io/handlers/chat.js (or import it there).

@@ -2,6 +2,7 @@ const { Server } = require('socket.io');
 const middleware = require('./middleware');
 const setupChatHandlers = require('./handlers/chat');
 const setupPersonalChatHandlers = require('./handlers/personalChat');
+const { registerMediaHandlers } = require('./handlers/mediachat');
 
 const initializeSocket = (httpServer) => {
   const io = new Server(httpServer);
@@ -15,6 +16,7 @@ const initializeSocket = (httpServer) => {
     // Setup event handlers
     setupChatHandlers(socket, io);
     setupPersonalChatHandlers(socket, io);
+    registerMediaHandlers(socket, io);
 
     // Handle disconnect
     socket.on('disconnect', () => {
@@ -29,8 +31,8 @@ const initializeSocket = (httpServer) => {
             middleware.onlineUsers.delete(uid);
           }
         }
-        middleware.userSockets.delete(uid);
       }
+      middleware.userSockets.delete(uid);
       console.log('User disconnected:', socket.id);
     });
   });

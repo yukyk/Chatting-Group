@@ -1,0 +1,48 @@
+/* ADD TO: public/css/chat.css  (or public/styles.css) */
+
+/* ── Media messages ──────────────────────────────────────────── */
+.media-message {
+  max-width: 280px;
+}
+
+.media-message img,
+.media-message video {
+  max-width: 260px;
+  border-radius: 8px;
+  display: block;
+  margin-top: 4px;
+  cursor: pointer;
+}
+
+.media-message a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.06);
+  border-radius: 8px;
+  text-decoration: none;
+  color: inherit;
+  font-size: 0.85rem;
+  margin-top: 4px;
+  word-break: break-all;
+}
+
+.media-message a:hover {
+  background: rgba(0, 0, 0, 0.12);
+}
+
+/* Attach button */
+#attachBtn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 1.25rem;
+  padding: 0 8px;
+  line-height: 1;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
+#attachBtn:hover  { opacity: 1; }
+#attachBtn:disabled { opacity: 0.3; cursor: not-allowed; }

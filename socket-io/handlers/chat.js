@@ -18,9 +18,9 @@ const setupHandlers = (socket, io) => {
 
         const senderId = socket.user.userId;
         const receiverId = parseInt(data.receiverId, 10);
-        const { content, roomId } = data;
+        const { content, roomId, mediaUrl, mediaType } = data;
 
-        if (isNaN(receiverId) || !content?.trim()) {
+        if (isNaN(receiverId) || (!content?.trim() && !mediaUrl)) {
             socket.emit('messageError', { message: 'Invalid message payload' });
             return;
         }
@@ -29,7 +29,9 @@ const setupHandlers = (socket, io) => {
             const message = await Message.create({
                 senderId,
                 receiverId,
-                content: content.trim(),
+                content: content?.trim() || '',
+                mediaUrl,
+                mediaType: mediaType || 'text',
                 isGroup: false
             });
 
@@ -38,6 +40,8 @@ const setupHandlers = (socket, io) => {
                 senderId: message.senderId,
                 receiverId: message.receiverId,
                 content: message.content,
+                mediaUrl: message.mediaUrl,
+                mediaType: message.mediaType,
                 createdAt: message.createdAt,
                 isGroup: false
             });
@@ -70,9 +74,9 @@ const setupHandlers = (socket, io) => {
 
         const senderId = socket.user.userId;
         const groupId = parseInt(data.groupId, 10);
-        const content = data.content?.trim();
+        const { content, mediaUrl, mediaType } = data;
 
-        if (isNaN(groupId) || !content) {
+        if (isNaN(groupId) || (!content?.trim() && !mediaUrl)) {
             socket.emit('groupMessageError', { message: 'Invalid group message payload' });
             return;
         }
@@ -81,7 +85,9 @@ const setupHandlers = (socket, io) => {
             const message = await Message.create({
                 senderId,
                 groupId,
-                content,
+                content: content?.trim() || '',
+                mediaUrl,
+                mediaType: mediaType || 'text',
                 isGroup: true
             });
 
@@ -94,6 +100,8 @@ const setupHandlers = (socket, io) => {
                 senderName: sender?.name ?? 'Unknown',
                 groupId: message.groupId,
                 content: message.content,
+                mediaUrl: message.mediaUrl,
+                mediaType: message.mediaType,
                 createdAt: message.createdAt,
                 isGroup: true
             });

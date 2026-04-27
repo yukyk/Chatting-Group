@@ -74,9 +74,16 @@ socket.on('newMessage', (msg) => {
 });
 
 // Update the last-message preview text in the sidebar without a full reload
-function updateLastMessagePreview(contactId, content) {
+function updateLastMessagePreview(contactId, content, mediaType) {
     const el = contactList.querySelector(`.contact[data-id="${contactId}"][data-type="contact"] .contact-preview`);
-    if (el) el.textContent = content;
+    if (!el) return;
+    if (content) {
+        el.textContent = content;
+    } else if (mediaType) {
+        el.textContent = mediaType === 'image' ? '📷 Photo' : mediaType === 'video' ? '🎥 Video' : '📎 File';
+    } else {
+        el.textContent = '';
+    }
 }
 
 // Place or update the unread badge dot on a sidebar item
@@ -465,9 +472,23 @@ function renderMessage(msg) {
         ? `<div class="msg-sender">${escapeHtml(msg.senderName || 'Unknown')}</div>`
         : '';
 
+    let contentHtml = '';
+    if (msg.mediaUrl) {
+        if (msg.mediaType === 'image') {
+            contentHtml = `<img src="${escapeHtml(msg.mediaUrl)}" alt="Image" class="media-image" onclick="window.open('${escapeHtml(msg.mediaUrl)}')">`;
+        } else if (msg.mediaType === 'video') {
+            contentHtml = `<video controls class="media-video"><source src="${escapeHtml(msg.mediaUrl)}" type="video/mp4"></video>`;
+        } else if (msg.mediaType === 'file') {
+            contentHtml = `<a href="${escapeHtml(msg.mediaUrl)}" target="_blank" class="media-file">📄 Download File</a>`;
+        }
+    }
+    if (msg.content) {
+        contentHtml += `<div class="message-content">${escapeHtml(msg.content)}</div>`;
+    }
+
     div.innerHTML = `
         ${senderLabel}
-        <div class="message-content">${escapeHtml(msg.content)}</div>
+        ${contentHtml}
         <div class="message-meta">${formatTime(msg.createdAt)}</div>`;
     messagesContainer.appendChild(div);
 }
@@ -500,6 +521,70 @@ messageForm.addEventListener('submit', (e) => {
     messageInput.value = '';
     sendBtn.disabled   = false;
 });
+
+// ── Media upload ──────────────────────────────────────────────────────────────
+document.getElementById('uploadBtn').addEventListener('click', () => {
+    document.getElementById('fileInput').click();
+});
+
+document.getElementById('fileInput').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (file.size > 10 * 1024 * 1024) {
+        alert('File too large. Max 10MB.');
+        return;
+    }
+
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'video/mp4', 'application/pdf'];
+    if (!allowedTypes.includes(file.type)) {
+        alert('Invalid file type. Only images, videos, and PDFs allowed.');
+        return;
+    }
+
+    try {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const res = await fetch('/api/chat/upload-media', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` },
+            body: formData
+        });
+
+        const data = await res.json();
+        if (data.success) {
+            sendMediaMessage(data.url, data.mediaType);
+        } else {
+            alert('Upload failed: ' + (data.message || 'Unknown error'));
+        }
+    } catch (err) {
+        console.error('Upload error:', err);
+        alert('Upload failed');
+    }
+
+    // Reset input
+    e.target.value = '';
+});
+
+function sendMediaMessage(mediaUrl, mediaType) {
+    if (activeContact) {
+        socket.emit('sendMessage', {
+            receiverId: activeContact.id,
+            content: '',
+            mediaUrl,
+            mediaType,
+            roomId: currentRoom
+        });
+    } else if (activeGroup) {
+        socket.emit('sendGroupMessage', {
+            groupId: activeGroup.id,
+            content: '',
+            mediaUrl,
+            mediaType
+        });
+    }
+}
 
 // ── Data loading ──────────────────────────────────────────────────────────────
 async function loadGroups() {

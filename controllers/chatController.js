@@ -1,6 +1,10 @@
+const path = require('path');
 const { Op } = require("sequelize");
 const { Message, User, Group, GroupMember } = require("../models");
 const middleware = require('../socket-io/middleware');
+const s3Client = require('../config/config/s3');
+const { PutObjectCommand } = require('@aws-sdk/client-s3');
+const { v4: uuidv4 } = require('uuid');
 
 exports.getContacts = async (req, res) => {
     try {
@@ -224,3 +228,49 @@ exports.deleteGroup = async (req, res) => {
         res.status(500).json({ success: false, message: error.message });
     }
 };
+
+exports.uploadMedia = async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ success: false, message: 'No file uploaded' });
+        }
+
+        const file = req.file;
+        const maxSize = 10 * 1024 * 1024; // 10MB
+        if (file.size > maxSize) {
+            return res.status(400).json({ success: false, message: 'File too large. Max 10MB.' });
+        }
+
+        const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'video/mp4', 'application/pdf'];
+        if (!allowedTypes.includes(file.mimetype)) {
+            return res.status(400).json({ success: false, message: 'Invalid file type. Only images, videos, and PDFs allowed.' });
+        }
+
+        const extension = path.extname(file.originalname).toLowerCase() || '';
+        const safeExtension = extension.match(/\.[a-z0-9]+$/i) ? extension : '';
+        const key = `uploads/${uuidv4()}${safeExtension}`;
+
+        const uploadParams = {
+            Bucket: process.env.AWS_S3_BUCKET_NAME,
+            Key: key,
+            Body: file.buffer,
+            ContentType: file.mimetype,
+            ACL: 'public-read'
+        };
+
+        await s3Client.send(new PutObjectCommand(uploadParams));
+
+        const url = `https://${process.env.AWS_S3_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${key}`;
+
+        res.json({ success: true, url, mediaType: getMediaType(file.mimetype) });
+    } catch (error) {
+        console.error('Upload error:', error);
+        res.status(500).json({ success: false, message: 'Upload failed' });
+    }
+};
+
+function getMediaType(mimetype) {
+    if (mimetype.startsWith('image/')) return 'image';
+    if (mimetype.startsWith('video/')) return 'video';
+    return 'file';
+}

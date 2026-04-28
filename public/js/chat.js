@@ -552,12 +552,12 @@ document.getElementById('fileInput').addEventListener('change', async (e) => {
             body: formData
         });
 
-        const data = await res.json();
-        if (data.success) {
-            sendMediaMessage(data.url, data.mediaType);
-        } else {
-            alert('Upload failed: ' + (data.message || 'Unknown error'));
-        }
+         const data = await res.json();
+         if (data.success) {
+             sendMediaMessage(data.mediaUrl, data.fileType);
+         } else {
+             alert('Upload failed: ' + (data.message || 'Unknown error'));
+         }
     } catch (err) {
         console.error('Upload error:', err);
         alert('Upload failed');

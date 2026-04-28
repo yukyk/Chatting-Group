@@ -68,11 +68,32 @@ function renderMessage(msg) {
     const isSent = parseInt(msg.senderId) === currentUserId;
     const div = document.createElement("div");
     div.className = `message ${isSent ? "sent" : "received"}`;
+
+    let contentHtml = '';
+    if (msg.mediaUrl) {
+        if (msg.mediaType === 'image') {
+            contentHtml = `<img src="${escapeHtml(msg.mediaUrl)}" alt="Image" class="media-image" onclick="window.open('${escapeHtml(msg.mediaUrl)}')">`;
+        } else if (msg.mediaType === 'video') {
+            contentHtml = `<video controls class="media-video"><source src="${escapeHtml(msg.mediaUrl)}" type="video/mp4"></video>`;
+        } else if (msg.mediaType === 'file') {
+            contentHtml = `<a href="${escapeHtml(msg.mediaUrl)}" target="_blank" class="media-file">📄 Download File</a>`;
+        }
+    }
+    if (msg.content) {
+        contentHtml += `<div class="message-content">${escapeHtml(msg.content)}</div>`;
+    }
+
     div.innerHTML = `
-        <div class="message-content">${msg.content}</div>
+        ${contentHtml}
         <div class="message-meta">${formatTime(msg.createdAt)}</div>
     `;
     messagesContainer.appendChild(div);
+}
+
+function escapeHtml(text) {
+    return String(text)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
 }
 
 function scrollToBottom() {
@@ -84,7 +105,7 @@ messageForm.addEventListener("submit", (e) => {
     const content = messageInput.value.trim();
     if (!content) return;
 
-    const sendBtn = messageForm.querySelector("button");
+    const sendBtn = messageForm.querySelector("button[type='submit']");
     sendBtn.disabled = true;
 
     socket.emit('sendMessage', {
@@ -96,6 +117,61 @@ messageForm.addEventListener("submit", (e) => {
     messageInput.value = "";
     sendBtn.disabled = false;
 });
+
+// ── Media upload ──────────────────────────────────────────────────────────────
+document.getElementById('uploadBtn').addEventListener('click', () => {
+    document.getElementById('fileInput').click();
+});
+
+document.getElementById('fileInput').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (file.size > 10 * 1024 * 1024) {
+        alert('File too large. Max 10MB.');
+        return;
+    }
+
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'video/mp4', 'application/pdf'];
+    if (!allowedTypes.includes(file.type)) {
+        alert('Invalid file type. Only images, videos, and PDFs allowed.');
+        return;
+    }
+
+    try {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const res = await fetch('/api/chat/upload-media', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` },
+            body: formData
+        });
+
+        const data = await res.json();
+        if (data.success) {
+            sendMediaMessage(data.mediaUrl, data.fileType);
+        } else {
+            alert('Upload failed: ' + (data.message || 'Unknown error'));
+        }
+    } catch (err) {
+        console.error('Upload error:', err);
+        alert('Upload failed');
+    }
+
+    // Reset input
+    e.target.value = '';
+});
+
+function sendMediaMessage(mediaUrl, mediaType) {
+    socket.emit('sendMessage', {
+        receiverId: activeContact ? activeContact.id : 0, // dummy
+        content: '',
+        mediaUrl,
+        mediaType,
+        roomId: roomId
+    });
+}
 
 async function loadMessages() {
     try {

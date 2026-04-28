@@ -194,6 +194,8 @@ exports.getGroupMessages = async (req, res) => {
             senderName: m.sender?.name ?? 'Unknown',
             groupId: m.groupId,
             content: m.content,
+            mediaUrl: m.mediaUrl,
+            mediaType: m.mediaType,
             createdAt: m.createdAt,
             isGroup: true
         }));

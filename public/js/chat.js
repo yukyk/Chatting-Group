@@ -69,7 +69,7 @@ socket.on('newMessage', (msg) => {
             updateBadge('contact', msgSenderId);
         }
         // Always refresh preview text for DMs
-        updateLastMessagePreview(otherId, msg.content);
+        updateLastMessagePreview(otherId, msg.content, msg.mediaType);
     }
 });
 
@@ -509,8 +509,8 @@ messageForm.addEventListener('submit', (e) => {
     const content = messageInput.value.trim();
     if (!content) return;
 
-    const sendBtn = messageForm.querySelector('button');
-    sendBtn.disabled = true;
+    const sendBtn = messageForm.querySelector('button[type="submit"]');
+    if (sendBtn) sendBtn.disabled = true;
 
     if (activeContact) {
         socket.emit('sendMessage', { receiverId: activeContact.id, content, roomId: currentRoom });
@@ -519,7 +519,7 @@ messageForm.addEventListener('submit', (e) => {
     }
 
     messageInput.value = '';
-    sendBtn.disabled   = false;
+    if (sendBtn) sendBtn.disabled = false;
 });
 
 // ── Media upload ──────────────────────────────────────────────────────────────
@@ -545,7 +545,6 @@ document.getElementById('fileInput').addEventListener('change', async (e) => {
     try {
         const formData = new FormData();
         formData.append('file', file);
-        formData.append('room', currentRoom);
 
         const res = await fetch('/api/chat/upload-media', {
             method: 'POST',
@@ -555,7 +554,7 @@ document.getElementById('fileInput').addEventListener('change', async (e) => {
 
         const data = await res.json();
         if (data.success) {
-            sendMediaMessage(data.mediaUrl, data.fileType);
+            sendMediaMessage(data.url, data.mediaType);
         } else {
             alert('Upload failed: ' + (data.message || 'Unknown error'));
         }

@@ -3,7 +3,10 @@ const router = express.Router();
 const chatController = require("../controllers/chatController");
 const { authMiddleware } = require("../controllers/AuthController");
 const multer = require("multer");
-const upload = multer({ storage: multer.memoryStorage() });
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 }
+});
 
 router.get("/contacts",             authMiddleware, chatController.getContacts);
 router.get("/messages",             authMiddleware, chatController.getMessages);

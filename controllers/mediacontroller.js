@@ -13,9 +13,7 @@ async function uploadMedia(req, res) {
     }
 
     const { room } = req.body;
-    if (!room) {
-      return res.status(400).json({ success: false, message: 'room is required.' });
-    }
+    // room is optional, not required for all cases
 
     const mediaUrl = await uploadToS3(
       req.file.buffer,
@@ -33,7 +31,7 @@ async function uploadMedia(req, res) {
       mediaUrl,
       fileType,
       fileName: req.file.originalname,
-      room,
+      room: room || null,
     });
   } catch (err) {
     console.error('[uploadMedia] Error:', err.message);

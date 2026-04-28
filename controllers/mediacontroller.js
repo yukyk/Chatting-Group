@@ -1,5 +1,5 @@
 // controllers/mediaController.js
-const { uploadToS3 } = require('../utils/s3Uploader');
+const { uploadToS3 } = require('../utils/s3uploader');
 
 /**
  * POST /api/chat/upload-media
@@ -35,7 +35,7 @@ async function uploadMedia(req, res) {
     });
   } catch (err) {
     console.error('[uploadMedia] Error:', err.message);
-    return res.status(500).json({ success: false, message: err.message });
+    return res.status(500).json({ success: false, message: 'Upload failed' });
   }
 }
 

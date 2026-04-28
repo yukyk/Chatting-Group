@@ -1,7 +1,3 @@
-// socket-io/handlers/mediaChat.js
-//
-// ADD this handler inside your existing socket-io/handlers/chat.js (or import it there).
-// It listens for the "send_media" event that the frontend emits after a successful upload.
 
 /**
  * Registers the "send_media" socket event handler.

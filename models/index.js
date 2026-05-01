@@ -1,6 +1,7 @@
 const sequelize = require('../utils/util');
 const User = require('./User');
 const Message = require('./Message');
+const ArchivedChat = require('./ArchivedChat');
 const Group = require('./Group');
 const GroupMember = require('./GroupMember');
 
@@ -25,6 +26,7 @@ module.exports = {
   sequelize,
   User,
   Message,
+  ArchivedChat,
   Group,
   GroupMember
 };

@@ -10,9 +10,16 @@ const PORT = process.env.PORT || 3000;
 
 require('./models');
 const initDatabase = require('./config/initDb');
+const { scheduleDailyArchive } = require('./config/archiveMessages');
 const { initializeSocket } = require('./socket-io');
 
-initDatabase();
+initDatabase()
+  .then(() => {
+    scheduleDailyArchive();
+  })
+  .catch((error) => {
+    console.error('Database initialization failed:', error);
+  });
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());

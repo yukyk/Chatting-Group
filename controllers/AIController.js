@@ -20,7 +20,7 @@ if (apiKey) {
       genAI = null;
     }
   }
-  model = genAI?.getGenerativeModel?.({ model: 'gemini-1.0-pro' }) ?? null;
+  model = genAI?.getGenerativeModel?.({ model: 'gemini-pro' }) ?? null;
 }
 
 const callModel = async (prompt) => {

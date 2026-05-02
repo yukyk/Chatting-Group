@@ -183,7 +183,7 @@ document.body.appendChild(hiddenSpan);
 
 messageInput.addEventListener('input', () => {
     clearTimeout(typingTimeout);
-    typingTimeout = setTimeout(fetchCompletion, 300);
+    typingTimeout = setTimeout(fetchCompletion, 100);
     handleCompletionMatch();
 });
 
@@ -232,11 +232,14 @@ function updateCompletionDisplay() {
         completionEl.textContent = '';
         return;
     }
-    // Measure the width of the input text
+    const computedStyle = window.getComputedStyle(messageInput);
+    hiddenSpan.style.font = computedStyle.font;
+    hiddenSpan.style.letterSpacing = computedStyle.letterSpacing;
     hiddenSpan.textContent = messageInput.value;
     const textWidth = hiddenSpan.offsetWidth;
-    completionEl.style.left = (16 + textWidth) + 'px'; // 16px padding
+    completionEl.style.left = (16 + textWidth) + 'px';
     completionEl.textContent = currentCompletion;
+    completionEl.style.display = 'inline';
 }
 
 function handleCompletionMatch() {

@@ -6,12 +6,12 @@ const model = genAI ? genAI.getGenerativeModel({ model: 'gemini-1.5-flash' }) : 
 
 exports.predictiveTyping = async (req, res) => {
     if (!model) {
-        return res.json({ suggestions: [] });
+        return res.json({ completion: '' });
     }
     try {
         const { partial } = req.body;
         if (!partial || partial.trim().length === 0) {
-            return res.json({ suggestions: [] });
+            return res.json({ completion: '' });
         }
 
         const prompt = `Given the partial message: "${partial}", suggest a concise word or phrase completion that is the most likely natural continuation. Respond with only the completion text, no quotes or extra text. Example: "5 pm"`;
@@ -23,7 +23,7 @@ exports.predictiveTyping = async (req, res) => {
         res.json({ completion: text });
     } catch (error) {
         console.error('Predictive typing error:', error);
-        res.status(500).json({ suggestions: [] });
+        res.status(500).json({ completion: '' });
     }
 };
 

@@ -2,7 +2,7 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 const apiKey = process.env.GEMINI_API_KEY;
 const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
-const model = genAI ? genAI.getGenerativeModel({ model: 'gemini-pro' }) : null;
+const model = genAI ? genAI.getGenerativeModel({ model: 'gemini-1.5-pro' }) : null;
 
 exports.predictiveTyping = async (req, res) => {
     if (!model) {

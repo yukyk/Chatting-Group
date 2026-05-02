@@ -15,7 +15,7 @@ if (apiKey) {
       genAI = null;
     }
   }
-  model = genAI?.getGenerativeModel?.({ model: 'gemini-1.5-flash' }) ?? null;
+  model = genAI?.getGenerativeModel?.({ model: 'gemini-2.5-flash' }) ?? null;
 }
 
 const callModel = async (prompt) => {

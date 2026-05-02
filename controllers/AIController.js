@@ -11,7 +11,7 @@ let model = null;
 
 if (apiKey) {
   try {
-    genAI = new GoogleGenerativeAI({ apiKey });
+    genAI = new GoogleGenerativeAI( apiKey );
   } catch (err) {
     try {
       genAI = new GoogleGenerativeAI(apiKey);
@@ -20,7 +20,7 @@ if (apiKey) {
       genAI = null;
     }
   }
-  model = genAI?.getGenerativeModel?.({ model: 'gemini-pro' }) ?? null;
+  model = genAI?.getGenerativeModel?.({ model: 'gemini-2.0-flash' }) ?? null;
 }
 
 const callModel = async (prompt) => {

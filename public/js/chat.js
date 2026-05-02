@@ -584,21 +584,42 @@ messageForm.addEventListener('submit', (e) => {
     }
 
     messageInput.value = '';
-    hideSuggestions();
+    currentCompletion = '';
+    updateCompletionDisplay();
     if (sendBtn) sendBtn.disabled = false;
 });
 
 // ── Predictive Typing ──────────────────────────────────────────────────────────
 let typingTimeout;
+let currentCompletion = '';
+const hiddenSpan = document.createElement('span');
+hiddenSpan.style.visibility = 'hidden';
+hiddenSpan.style.position = 'absolute';
+hiddenSpan.style.fontSize = '14px';
+hiddenSpan.style.fontFamily = 'inherit';
+document.body.appendChild(hiddenSpan);
+
 messageInput.addEventListener('input', () => {
     clearTimeout(typingTimeout);
-    typingTimeout = setTimeout(fetchSuggestions, 300);
+    typingTimeout = setTimeout(fetchCompletion, 300);
+    handleCompletionMatch();
 });
 
-function fetchSuggestions() {
+messageInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Tab' && currentCompletion) {
+        e.preventDefault();
+        messageInput.value += currentCompletion;
+        currentCompletion = '';
+        updateCompletionDisplay();
+        messageInput.focus();
+    }
+});
+
+function fetchCompletion() {
     const partial = messageInput.value.trim();
     if (!partial) {
-        hideSuggestions();
+        currentCompletion = '';
+        updateCompletionDisplay();
         return;
     }
 
@@ -612,38 +633,41 @@ function fetchSuggestions() {
     })
     .then(res => res.json())
     .then(data => {
-        showSuggestions(data.suggestions || []);
+        currentCompletion = data.completion || '';
+        updateCompletionDisplay();
     })
     .catch(err => {
-        console.error('Error fetching suggestions:', err);
-        hideSuggestions();
+        console.error('Error fetching completion:', err);
+        currentCompletion = '';
+        updateCompletionDisplay();
     });
 }
 
-function showSuggestions(suggestions) {
-    const suggestionsDiv = document.getElementById('suggestions');
-    suggestionsDiv.innerHTML = '';
-    if (suggestions.length === 0) {
-        suggestionsDiv.style.display = 'none';
+function updateCompletionDisplay() {
+    const completionEl = document.getElementById('completion');
+    if (!currentCompletion) {
+        completionEl.textContent = '';
         return;
     }
-    suggestions.forEach(suggestion => {
-        const span = document.createElement('span');
-        span.className = 'suggestion';
-        span.textContent = suggestion;
-        span.addEventListener('click', () => {
-            messageInput.value += suggestion;
-            hideSuggestions();
-            messageInput.focus();
-        });
-        suggestionsDiv.appendChild(span);
-    });
-    suggestionsDiv.style.display = 'flex';
+    // Measure the width of the input text
+    hiddenSpan.textContent = messageInput.value;
+    const textWidth = hiddenSpan.offsetWidth;
+    completionEl.style.left = (16 + textWidth) + 'px'; // 16px padding
+    completionEl.textContent = currentCompletion;
 }
 
-function hideSuggestions() {
-    const suggestionsDiv = document.getElementById('suggestions');
-    suggestionsDiv.style.display = 'none';
+function handleCompletionMatch() {
+    if (!currentCompletion) return;
+    const inputVal = messageInput.value;
+    const lastChar = inputVal.slice(-1);
+    if (lastChar && currentCompletion.startsWith(lastChar)) {
+        currentCompletion = currentCompletion.slice(1);
+        updateCompletionDisplay();
+    } else {
+        // If doesn't match, refetch
+        clearTimeout(typingTimeout);
+        typingTimeout = setTimeout(fetchCompletion, 100);
+    }
 }
 
 // ── Media upload ──────────────────────────────────────────────────────────────

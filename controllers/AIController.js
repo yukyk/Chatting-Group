@@ -14,21 +14,13 @@ exports.predictiveTyping = async (req, res) => {
             return res.json({ suggestions: [] });
         }
 
-        const prompt = `Given the partial message: "${partial}", suggest 3 concise word or phrase completions that are relevant, natural, appropriate, and polite continuations. Respond with only a JSON array of strings, no other text. Example: ["5 pm", "the office", "tomorrow"]`;
+        const prompt = `Given the partial message: "${partial}", suggest a concise word or phrase completion that is the most likely natural continuation. Respond with only the completion text, no quotes or extra text. Example: "5 pm"`;
 
         const result = await model.generateContent(prompt);
         const response = await result.response;
         const text = response.text().trim();
 
-        let suggestions;
-        try {
-            suggestions = JSON.parse(text);
-        } catch (e) {
-            // Fallback: extract from text
-            suggestions = text.split(',').map(s => s.trim().replace(/"/g, '')).slice(0, 3);
-        }
-
-        res.json({ suggestions: suggestions.slice(0, 3) });
+        res.json({ completion: text });
     } catch (error) {
         console.error('Predictive typing error:', error);
         res.status(500).json({ suggestions: [] });

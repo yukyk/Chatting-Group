@@ -34,8 +34,8 @@ const initializeSocket = (httpServer) => {
             middleware.onlineUsers.delete(uid);
           }
         }
+        middleware.userSockets.delete(uid);
       }
-      middleware.userSockets.delete(uid);
       console.log('User disconnected:', socket.id);
     });
   });

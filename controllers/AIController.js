@@ -1,4 +1,9 @@
 const { GoogleGenerativeAI } = require('@google/generative-ai');
+console.log("=== GEMINI DEBUG ===");
+console.log("KEY RAW:", process.env.GEMINI_API_KEY);
+console.log("KEY LENGTH:", process.env.GEMINI_API_KEY?.length);
+console.log("FIRST 10:", process.env.GEMINI_API_KEY?.slice(0, 10));
+console.log("====================");
 
 const apiKey = process.env.GEMINI_API_KEY;
 let genAI = null;

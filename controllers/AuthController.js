@@ -86,6 +86,15 @@ const AuthController = {
 
       const token = generateToken(newUser.id, newUser.email);
 
+      // Notify all connected users about the new user
+      if (global.io) {
+        global.io.emit('newUser', {
+          id: newUser.id,
+          name: newUser.name,
+          email: newUser.email
+        });
+      }
+
       res.status(201).json({
         success: true,
         message: 'Account created successfully!',

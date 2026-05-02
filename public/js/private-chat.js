@@ -88,6 +88,57 @@ function renderMessage(msg) {
         <div class="message-meta">${formatTime(msg.createdAt)}</div>
     `;
     messagesContainer.appendChild(div);
+
+    // Add smart replies for received messages
+    if (!isSent && msg.content && !msg.mediaUrl) {
+        fetchSmartReplies(msg.content, div);
+    }
+}
+
+function fetchSmartReplies(message, messageDiv) {
+    fetch('/api/ai/smart-replies', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ message })
+    })
+    .then(res => res.json())
+    .then(data => {
+        const replies = data.replies || [];
+        if (replies.length > 0) {
+            const repliesDiv = document.createElement('div');
+            repliesDiv.className = 'smart-replies';
+            repliesDiv.style.marginTop = '8px';
+            repliesDiv.style.display = 'flex';
+            repliesDiv.style.gap = '8px';
+            repliesDiv.style.flexWrap = 'wrap';
+            replies.forEach(reply => {
+                const btn = document.createElement('button');
+                btn.className = 'smart-reply-btn';
+                btn.textContent = reply;
+                btn.style.padding = '6px 12px';
+                btn.style.background = 'var(--bg-tertiary)';
+                btn.style.color = 'var(--text-primary)';
+                btn.style.border = 'none';
+                btn.style.borderRadius = '16px';
+                btn.style.fontSize = '14px';
+                btn.style.cursor = 'pointer';
+                btn.style.transition = 'background 0.2s';
+                btn.addEventListener('mouseenter', () => btn.style.background = 'var(--accent)');
+                btn.addEventListener('mouseleave', () => btn.style.background = 'var(--bg-tertiary)');
+                btn.addEventListener('click', () => {
+                    messageInput.value = reply;
+                    messageInput.focus();
+                    hideSuggestions();
+                });
+                repliesDiv.appendChild(btn);
+            });
+            messageDiv.appendChild(repliesDiv);
+        }
+    })
+    .catch(err => console.error('Error fetching smart replies:', err));
 }
 
 function escapeHtml(text) {
@@ -115,8 +166,67 @@ messageForm.addEventListener("submit", (e) => {
     });
 
     messageInput.value = "";
+    hideSuggestions();
     sendBtn.disabled = false;
 });
+
+// ── Predictive Typing ──────────────────────────────────────────────────────────
+let typingTimeout;
+messageInput.addEventListener('input', () => {
+    clearTimeout(typingTimeout);
+    typingTimeout = setTimeout(fetchSuggestions, 300);
+});
+
+function fetchSuggestions() {
+    const partial = messageInput.value.trim();
+    if (!partial) {
+        hideSuggestions();
+        return;
+    }
+
+    fetch('/api/ai/predictive-typing', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ partial })
+    })
+    .then(res => res.json())
+    .then(data => {
+        showSuggestions(data.suggestions || []);
+    })
+    .catch(err => {
+        console.error('Error fetching suggestions:', err);
+        hideSuggestions();
+    });
+}
+
+function showSuggestions(suggestions) {
+    const suggestionsDiv = document.getElementById('suggestions');
+    suggestionsDiv.innerHTML = '';
+    if (suggestions.length === 0) {
+        suggestionsDiv.style.display = 'none';
+        return;
+    }
+    suggestions.forEach(suggestion => {
+        const span = document.createElement('span');
+        span.className = 'suggestion';
+        span.textContent = suggestion;
+        span.addEventListener('click', () => {
+            messageInput.value += suggestion;
+            hideSuggestions();
+            messageInput.focus();
+        });
+        suggestionsDiv.appendChild(span);
+    });
+    suggestionsDiv.style.display = 'flex';
+}
+
+function hideSuggestions() {
+    const suggestionsDiv = document.getElementById('suggestions');
+    suggestionsDiv.style.display = 'none';
+}
 
 // ── Media upload ──────────────────────────────────────────────────────────────
 document.getElementById('uploadBtn').addEventListener('click', () => {

@@ -7,22 +7,37 @@ exports.getContacts = async (req, res) => {
     try {
         const userId = req.user.userId;
 
+        // Get all users except current user
         const users = await User.findAll({
             where: { id: { [Op.ne]: userId } },
             attributes: ["id", "name", "email"]
         });
 
-        const contacts = await Promise.all(users.map(async (user) => {
-            const lastMsg = await Message.findOne({
-                where: {
-                    isGroup: false,
-                    [Op.or]: [
-                        { senderId: userId, receiverId: user.id },
-                        { senderId: user.id, receiverId: userId }
-                    ]
-                },
-                order: [["createdAt", "DESC"]]
-            });
+        // Get last messages for all contacts in one query
+        const lastMessages = await Message.findAll({
+            where: {
+                isGroup: false,
+                [Op.or]: [
+                    { senderId: userId },
+                    { receiverId: userId }
+                ]
+            },
+            attributes: ['senderId', 'receiverId', 'content', 'createdAt'],
+            order: [['createdAt', 'DESC']]
+        });
+
+        // Create a map of last messages by contact ID
+        const lastMessageMap = new Map();
+        for (const msg of lastMessages) {
+            const contactId = msg.senderId === userId ? msg.receiverId : msg.senderId;
+            if (!lastMessageMap.has(contactId)) {
+                lastMessageMap.set(contactId, msg);
+            }
+        }
+
+        // Build contacts array
+        const contacts = users.map(user => {
+            const lastMsg = lastMessageMap.get(user.id);
             return {
                 id: user.id,
                 name: user.name,
@@ -30,7 +45,7 @@ exports.getContacts = async (req, res) => {
                 lastMessage: lastMsg ? lastMsg.content : "",
                 online: middleware.onlineUsers.has(user.id)
             };
-        }));
+        });
 
         res.json({ success: true, contacts });
     } catch (error) {

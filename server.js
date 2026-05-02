@@ -11,7 +11,7 @@ const PORT = process.env.PORT || 3000;
 require('./models');
 const initDatabase = require('./config/initDb');
 const { scheduleDailyArchive } = require('./config/archiveMessages');
-const { initializeSocket } = require('./socket-io');
+const { initializeSocket, getIO } = require('./socket-io');
 
 initDatabase()
   .then(() => {
@@ -28,8 +28,12 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use('/api', require('./routes/auth'));
 app.use('/api/chat', require('./routes/chat'));
 app.use('/api/chat', require('./routes/media'));
+app.use('/api/ai', require('./routes/ai'));
 
 initializeSocket(server);
+
+// Export io for use in controllers
+global.io = getIO();
 
 app.get('/', (req, res) => {
   res.redirect('/chat');

@@ -4,8 +4,11 @@ const setupChatHandlers = require('./handlers/chat');
 const setupPersonalChatHandlers = require('./handlers/personalChat');
 const { registerMediaHandlers } = require('./handlers/mediachat');
 
+let ioInstance = null;
+
 const initializeSocket = (httpServer) => {
   const io = new Server(httpServer);
+  ioInstance = io;
 
   // Setup middleware
   middleware.setupMiddleware(io);
@@ -38,4 +41,6 @@ const initializeSocket = (httpServer) => {
   });
 };
 
-module.exports = { initializeSocket };
+const getIO = () => ioInstance;
+
+module.exports = { initializeSocket, getIO };
